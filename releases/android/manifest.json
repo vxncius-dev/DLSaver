@@ -1,6 +1,15 @@
 {
     "releases":  [
                      {
+                         "versionCode":  2,
+                         "versionName":  "1.14.7",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.14.7/dlsaver_v1.14.7.apk",
+                         "notes":  "Versao de Lancamento",
+                         "publishedAt":  "2026-04-30T16:50:57Z",
+                         "sha256":  "3ee4a19374690e99555b49584ec1a0898694b8c55a2a4b34630ca08d3414ba4f",
+                         "sizeBytes":  101952084
+                     },
+                     {
                          "versionCode":  1,
                          "versionName":  "1.14.7.apk",
                          "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.14.7.apk/dlsaver_v1.14.7.apk",
