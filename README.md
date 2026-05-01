@@ -1,8 +1,15 @@
 # DLSaver
 
-Salve seus conteudos em segundos.
+DLSaver é uma ferramenta para buscar e baixar áudio ou vídeo de forma rápida e direta.
 
-DLSaver e a distribuicao oficial dos builds do app para download rapido por plataforma. Este repositorio existe para centralizar os arquivos publicados em `releases/`, com foco em uma experiencia simples, direta e sem ruido.
+Cole um link ou digite uma frase, escolha o formato, selecione a qualidade e inicie o download em poucos segundos. O app foi pensado para criadores e equipes que precisam de uma experiência simples, rápida e sem etapas desnecessárias.
+
+## Funcionalidades
+
+- Busca por link ou texto
+- Download de áudio e vídeo
+- Escolha de formato antes do download
+- Player nativo para audio e video
 
 ## Plataformas
 
@@ -11,8 +18,11 @@ DLSaver e a distribuicao oficial dos builds do app para download rapido por plat
 - `releases/ubuntu/`
 - `releases/debian/`
 
-## Notas
+## Download
 
-- macOS, iPhone e iPad nao fazem parte desta distribuicao no momento.
-- Os arquivos deste repositorio sao usados como origem publica para os downloads do site.
-- Sempre prefira a release mais recente da pasta correspondente ao seu sistema.
+[Latest release](./releases)
+
+## Source
+
+O código fonte não é público.
+Este repositório serve como distribuição oficial dos builds.
