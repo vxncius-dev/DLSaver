@@ -18,10 +18,6 @@ Cole um link ou digite uma frase, escolha o formato, selecione a qualidade e ini
 - `releases/ubuntu/`
 - `releases/debian/`
 
-## Download
-
-[Latest release](./releases)
-
 ## Source
 
 O código fonte não é público.
