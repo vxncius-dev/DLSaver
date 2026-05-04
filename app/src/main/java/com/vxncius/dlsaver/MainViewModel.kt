@@ -404,17 +404,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun duplicateStatusFor(url: String, title: String, kind: DownloadKind): DownloadEnqueueStatus? {
-        val targetBaseName = normalizedDownloadBaseName(title)
         val state = uiState.value
         val activeDuplicate = state.downloadJobs.any { job ->
             job.kind == kind &&
                 job.status != DownloadJobStatus.COMPLETED &&
-                (job.sourceUrl == url || normalizedDownloadBaseName(job.title) == targetBaseName)
+                job.sourceUrl == url
         }
         if (activeDuplicate) return DownloadEnqueueStatus.DUPLICATE_ACTIVE
 
         val existingDuplicate = state.existingDownloads.any { existing ->
-            existing.kind == kind && normalizedDownloadBaseName(existing.name) == targetBaseName
+            existing.kind == kind &&
+                existing.sourceUrl == url &&
+                existing.sourceUrl.startsWith("http")
         }
         if (existingDuplicate) return DownloadEnqueueStatus.DUPLICATE_EXISTING
 

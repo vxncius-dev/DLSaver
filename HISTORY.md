@@ -10,3 +10,4 @@
 - Download de áudio ficou mais defensivo: se o `aria2c` falhar ou não produzir arquivo, tenta novamente sem acelerador.
 - Áudios baixados tentam conversão segura para FLAC via FFmpeg; se a conversão falhar, o arquivo original é mantido.
 - `.gitignore` atualizado para evitar versionar caches, build local, APKs e arquivos sensíveis.
+- Checagem de duplicidade ficou menos agressiva: downloads só são ignorados por URL exata, evitando que músicas longas/mixes com nomes parecidos sejam pulados antes de iniciar.
