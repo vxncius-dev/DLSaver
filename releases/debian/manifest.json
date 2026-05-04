@@ -1,0 +1,15 @@
+{
+  "appId": "com.vxncius.dlsaver",
+  "releases": [
+    {
+      "versionCode": 7,
+      "versionName": "1.15.3",
+      "debUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.3/dlsaver_1.15.3_amd64_debian.deb",
+      "notes": "Build Debian amd64 com busca corrigida, backend local e empacotamento Qt",
+      "publishedAt": "2026-05-04T16:33:45Z",
+      "sha256": "d67630f5b30ee67c89cb9c25f731f1fcf287a6fd22aba9a0f5b1c5f93d1a5e53",
+      "sizeBytes": 236824128,
+      "arch": "amd64"
+    }
+  ]
+}
