@@ -1,0 +1,17 @@
+.gradle/
+.kotlin/
+.codex_tmp/
+__pycache__/
+*.pyc
+/build/
+/local.properties
+/.idea/
+*.iml
+/app/build/
+/captures/
+/externalNativeBuild/
+.cxx/
+keystore.properties
+*.jks
+*.keystore
+releases/*.apk
