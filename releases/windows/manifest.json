@@ -1,0 +1,15 @@
+{
+  "appId": "com.vxncius.dlsaver",
+  "releases": [
+    {
+      "versionCode": 7,
+      "versionName": "1.15.3",
+      "exeUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.3/dlsaver_v1.15.3_windows_x64.exe",
+      "notes": "Build Windows com busca corrigida, manifest por plataforma e melhorias de empacotamento desktop",
+      "publishedAt": "2026-05-04T16:33:45Z",
+      "sha256": "f530767e17a2aacab9850276803dfbf018c28430c6e66ba7baba2463db5954a8",
+      "sizeBytes": 139074862,
+      "arch": "x64"
+    }
+  ]
+}
