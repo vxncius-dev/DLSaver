@@ -1,23 +1,32 @@
 {
-  "appId": "com.vxncius.dlsaver",
-  "releases": [
-    {
-      "versionCode": 4,
-      "versionName": "1.14.8",
-      "apkPath": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.14.8/dlsaver_v1.14.8.apk",
-      "notes": "Versão de lançamento",
-      "publishedAt": "2026-05-02T02:30:39Z",
-      "sha256": "2494ea4e4a18471db06e42163a3be603c86b0412cce6e332d5ad61f5b11ab1ca",
-      "sizeBytes": 101952204
-    },
-    {
-      "versionCode": 2,
-      "versionName": "1.14.7",
-      "apkPath": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.14.7/dlsaver_v1.14.7.apk",
-      "notes": "Versão de lançamento",
-      "publishedAt": "2026-04-30T17:31:17Z",
-      "sha256": "bbcc273c0a39e4e8eb8ae026c70ef4c8e85fb3e5bfe24b081e341dcb66a58db8",
-      "sizeBytes": 101952084
-    }
-  ]
+    "appId":  "com.vxncius.dlsaver",
+    "releases":  [
+                     {
+                         "versionCode":  5,
+                         "versionName":  "1.15.0",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0.apk",
+                         "notes":  "Correções na lógica de atualização, melhoria no carregamento das letras e ajustes visuais simples na tela de configurações e player",
+                         "publishedAt":  "2026-05-04T00:31:35Z",
+                         "sha256":  "f2af1fbee85d2ddb3c81c6aa18446529d5f3bdc2e4cefb0a2f2311e7bd3d20f8",
+                         "sizeBytes":  85928373
+                     },
+                     {
+                         "versionCode":  4,
+                         "versionName":  "1.14.8",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.14.8/dlsaver_v1.14.8.apk",
+                         "notes":  "Versão de lançamento",
+                         "publishedAt":  "2026-05-02T02:30:39Z",
+                         "sha256":  "2494ea4e4a18471db06e42163a3be603c86b0412cce6e332d5ad61f5b11ab1ca",
+                         "sizeBytes":  101952204
+                     },
+                     {
+                         "versionCode":  2,
+                         "versionName":  "1.14.7",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.14.7/dlsaver_v1.14.7.apk",
+                         "notes":  "Versão de lançamento",
+                         "publishedAt":  "2026-04-30T17:31:17Z",
+                         "sha256":  "bbcc273c0a39e4e8eb8ae026c70ef4c8e85fb3e5bfe24b081e341dcb66a58db8",
+                         "sizeBytes":  101952084
+                     }
+                 ]
 }
