@@ -92,20 +92,9 @@ try {
         $remoteManifestApiPath
     )
 
-    $existingReleases = @()
     $remoteSha = $null
     if ($remoteManifest -ne $null) {
         $remoteSha = $remoteManifest.sha
-        $remoteText = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(($remoteManifest.content -replace "\s", "")))
-        $existing = $remoteText | ConvertFrom-Json
-        if ($existing.releases) {
-            $existingReleases = @($existing.releases | Where-Object { [int]$_.versionCode -ne $versionCode })
-        }
-    } elseif (Test-Path $localManifestFile) {
-        $existing = Get-Content -Path $localManifestFile -Raw | ConvertFrom-Json
-        if ($existing.releases) {
-            $existingReleases = @($existing.releases | Where-Object { [int]$_.versionCode -ne $versionCode })
-        }
     }
 
     $notes = "Versao de lancamento"
@@ -120,7 +109,6 @@ try {
     $newRelease = [ordered]@{
         versionCode = $versionCode
         versionName = $versionName
-        apkPath = $downloadUrl
         apkUrl = $downloadUrl
         notes = $notes
         publishedAt = $publishedAt
@@ -131,7 +119,7 @@ try {
 
     $manifest = [ordered]@{
         appId = "com.vxncius.dlsaver"
-        releases = @($newRelease) + @($existingReleases | Sort-Object -Property versionCode -Descending)
+        releases = @($newRelease)
     }
     $manifestText = ($manifest | ConvertTo-Json -Depth 8) + "`n"
     Set-Content -Path $localManifestFile -Value $manifestText -Encoding UTF8
