@@ -15,6 +15,7 @@ object DownloadRepository {
         ffmpegPath: String,
         aria2cPath: String,
         audioOnly: Boolean,
+        videoMinHeight: Int,
         callback: PythonProgressCallback
     ): DownloadResult = withContext(Dispatchers.IO) {
         downloadSemaphore.withPermit {
@@ -25,6 +26,7 @@ object DownloadRepository {
                 ffmpegPath = ffmpegPath,
                 aria2cPath = aria2cPath,
                 audioOnly = audioOnly,
+                videoMinHeight = videoMinHeight,
                 callback = callback
             )
         }

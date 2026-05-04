@@ -59,6 +59,7 @@ data class DownloadJobItem(
     val sourceUrl: String,
     val thumbnailUrl: String = "",
     val kind: DownloadKind,
+    val videoMinHeight: Int = 0,
     val status: DownloadJobStatus,
     val progress: Float = 0f,
     val statusText: String = "",
@@ -114,6 +115,11 @@ data class DownloadResult(
     val log: String,
     val tempDir: String,
     val files: List<String>
+)
+
+data class VideoQualityOption(
+    val height: Int,
+    val label: String
 )
 
 data class BinaryPaths(

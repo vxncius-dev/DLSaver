@@ -11,3 +11,5 @@
 - Áudios baixados tentam conversão segura para FLAC via FFmpeg; se a conversão falhar, o arquivo original é mantido.
 - `.gitignore` atualizado para evitar versionar caches, build local, APKs e arquivos sensíveis.
 - Checagem de duplicidade ficou menos agressiva: downloads só são ignorados por URL exata, evitando que músicas longas/mixes com nomes parecidos sejam pulados antes de iniciar.
+- Ao escolher baixar um item que já existe no mesmo formato, o app agora mostra diálogo oferecendo baixar no formato alternativo.
+- Downloads de vídeo agora consultam qualidades disponíveis: mostra seletor quando há várias opções 720p+, ou baixa direto avisando quando só existe uma qualidade/abaixo de 720p.

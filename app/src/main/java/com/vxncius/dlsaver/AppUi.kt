@@ -213,7 +213,7 @@ fun DLSaverRoot(
     onListInput: () -> Unit,
     onLoadMore: () -> Unit,
     onNavigate: (AppScreen) -> Unit,
-    onDownloadResult: (SearchResultItem, DownloadKind) -> DownloadEnqueueResult,
+    onDownloadResult: (SearchResultItem, DownloadKind, Int) -> DownloadEnqueueResult,
     onOpenPlaylist: (String) -> Unit,
     onSetSelectionMode: (Boolean) -> Unit,
     onToggleSelectAll: () -> Unit,
@@ -248,6 +248,10 @@ fun DLSaverRoot(
     var dialogItem by remember { mutableStateOf<SearchResultItem?>(null) }
     var multiDownloadSheetOpen by remember { mutableStateOf(false) }
     var duplicateDownloadRequest by remember { mutableStateOf<Pair<SearchResultItem, DownloadKind>?>(null) }
+    var videoQualityItem by remember { mutableStateOf<SearchResultItem?>(null) }
+    var videoQualityOptions by remember { mutableStateOf<List<VideoQualityOption>>(emptyList()) }
+    var videoQualityLoading by remember { mutableStateOf(false) }
+    var videoQualityError by remember { mutableStateOf("") }
     var libraryMenuItem by remember { mutableStateOf<ExistingDownloadItem?>(null) }
     var playbackMenuItem by remember { mutableStateOf<ExistingDownloadItem?>(null) }
     var renameItem by remember { mutableStateOf<ExistingDownloadItem?>(null) }
@@ -267,6 +271,7 @@ fun DLSaverRoot(
     var dismissedUpdateVersionCode by rememberSaveable { mutableStateOf(-1) }
     val updateState by UpdateManager.state.collectAsState()
     val updateScope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val latestUpdate = updateState.manifest?.latest
     val showUpdateDialog = latestUpdate != null &&
         latestUpdate.versionCode > BuildConfig.VERSION_CODE &&
@@ -274,6 +279,58 @@ fun DLSaverRoot(
     val currentPlaybackItem = remember(state.existingDownloads, playbackUiState.mediaUri) {
         val currentUri = playbackUiState.mediaUri?.toString().orEmpty()
         state.existingDownloads.firstOrNull { it.sourceUrl == currentUri }
+    }
+    fun startVideoDownloadWithQuality(item: SearchResultItem) {
+        Toast.makeText(context, "Buscando qualidades disponíveis...", Toast.LENGTH_SHORT).show()
+        videoQualityItem = null
+        videoQualityLoading = false
+        videoQualityError = ""
+        videoQualityOptions = emptyList()
+        scope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    DownloadEngines.current.listVideoQualities(item.url)
+                }
+            }
+            result.onSuccess { qualities ->
+                val sorted = qualities.distinctBy { it.height }.sortedByDescending { it.height }
+                val preferred = sorted.filter { it.height >= 720 }
+                when {
+                    preferred.size > 1 -> {
+                        videoQualityItem = item
+                        videoQualityOptions = preferred
+                        videoQualityLoading = false
+                        videoQualityError = ""
+                    }
+                    preferred.size == 1 -> {
+                        val quality = preferred.first()
+                        val enqueue = onDownloadResult(item, DownloadKind.VIDEO, quality.height)
+                        Toast.makeText(context, "Apenas ${quality.label} disponível. ${enqueue.toastMessage()}", Toast.LENGTH_LONG).show()
+                    }
+                    sorted.isNotEmpty() -> {
+                        val quality = sorted.first()
+                        val enqueue = onDownloadResult(item, DownloadKind.VIDEO, quality.height)
+                        Toast.makeText(context, "Só ${quality.label} disponível. Baixando nessa qualidade.", Toast.LENGTH_LONG).show()
+                        if (!enqueue.enqueued) {
+                            Toast.makeText(context, enqueue.toastMessage(), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    else -> {
+                        val enqueue = onDownloadResult(item, DownloadKind.VIDEO, 0)
+                        Toast.makeText(context, "Qualidade não informada. Baixando melhor disponível.", Toast.LENGTH_LONG).show()
+                        if (!enqueue.enqueued) {
+                            Toast.makeText(context, enqueue.toastMessage(), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }.onFailure {
+                val enqueue = onDownloadResult(item, DownloadKind.VIDEO, 0)
+                Toast.makeText(context, "Não consegui listar qualidades. Baixando melhor disponível.", Toast.LENGTH_LONG).show()
+                if (!enqueue.enqueued) {
+                    Toast.makeText(context, enqueue.toastMessage(), Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
     }
 
     LaunchedEffect(state.screen) {
@@ -355,8 +412,14 @@ fun DLSaverRoot(
             item = item,
             onDismiss = { dialogItem = null },
             onSelect = { kind ->
-                val result = onDownloadResult(item, kind)
-                Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
+                if (shouldConfirmDuplicateDownload(state, item, kind)) {
+                    duplicateDownloadRequest = item to kind
+                } else if (kind == DownloadKind.VIDEO) {
+                    startVideoDownloadWithQuality(item)
+                } else {
+                    val result = onDownloadResult(item, kind, 0)
+                    Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
+                }
                 dialogItem = null
             }
         )
@@ -379,11 +442,34 @@ fun DLSaverRoot(
     duplicateDownloadRequest?.let { (item, kind) ->
         ConfirmDuplicateDownloadDialog(
             itemTitle = sanitizeDownloadTitle(item.title),
+            existingKind = kind,
             onDismiss = { duplicateDownloadRequest = null },
             onConfirm = {
-                val result = onDownloadResult(item, kind)
-                Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
+                val alternateKind = kind.opposite()
+                if (shouldConfirmDuplicateDownload(state, item, alternateKind)) {
+                    Toast.makeText(context, "Esse item já existe nos dois formatos", Toast.LENGTH_SHORT).show()
+                } else if (alternateKind == DownloadKind.VIDEO) {
+                    startVideoDownloadWithQuality(item)
+                } else {
+                    val result = onDownloadResult(item, alternateKind, 0)
+                    Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
+                }
                 duplicateDownloadRequest = null
+            }
+        )
+    }
+
+    videoQualityItem?.let { item ->
+        VideoQualityBottomSheet(
+            item = item,
+            options = videoQualityOptions,
+            loading = videoQualityLoading,
+            error = videoQualityError,
+            onDismiss = { videoQualityItem = null },
+            onSelect = { quality ->
+                val result = onDownloadResult(item, DownloadKind.VIDEO, quality.height)
+                Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
+                videoQualityItem = null
             }
         )
     }
@@ -1951,18 +2037,21 @@ private fun ConfirmMultiDeleteDialog(
 @Composable
 private fun ConfirmDuplicateDownloadDialog(
     itemTitle: String,
+    existingKind: DownloadKind,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
+    val existingLabel = existingKind.label()
+    val alternateLabel = existingKind.opposite().label()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Arquivo repetido") },
+        title = { Text("Arquivo já existe") },
         text = {
-            Text("Já existe um item com o nome \"$itemTitle\". Deseja baixar mesmo assim? O novo arquivo será salvo com numeração automática.")
+            Text("Você já tem \"$itemTitle\" como $existingLabel. Quer baixar como $alternateLabel?")
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("Baixar mesmo assim")
+                Text("Baixar como ${alternateLabel}")
             }
         },
         dismissButton = {
@@ -2773,6 +2862,94 @@ private fun DownloadKindBottomSheet(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
+private fun VideoQualityBottomSheet(
+    item: SearchResultItem,
+    options: List<VideoQualityOption>,
+    loading: Boolean,
+    error: String,
+    onDismiss: () -> Unit,
+    onSelect: (VideoQualityOption) -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                ThumbnailBox(
+                    url = itemThumbnailUrl(item),
+                    fallbackUrl = fallbackThumbnailUrlFor(item),
+                    kind = DownloadKind.VIDEO,
+                    preferCover = false
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = "Qualidade do vídeo",
+                        style = MaterialTheme.typography.titleLarge,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = item.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            if (loading) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Text("Carregando qualidades...")
+                }
+            } else if (options.isEmpty()) {
+                Text(
+                    text = error.ifBlank { "Nenhuma qualidade 720p ou maior disponível." },
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            } else {
+                options.forEach { option ->
+                    TextButton(
+                        onClick = { onSelect(option) },
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(0.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.SmartDisplay, contentDescription = null)
+                            Text(option.label)
+                        }
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.size(12.dp))
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun DownloadKindMultiBottomSheet(
     title: String,
     count: Int,
@@ -3240,7 +3417,7 @@ private fun PlayerBottomSheet(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(126.dp))
+                    Spacer(modifier = Modifier.height(160.dp))
                 }
             }
         }
@@ -4658,6 +4835,20 @@ private fun shouldConfirmDuplicateDownload(
         existing.kind == kind && normalizedDownloadBaseName(existing.name) == targetBaseName
     } || state.downloadJobs.any { job ->
         job.kind == kind && normalizedDownloadBaseName(job.title) == targetBaseName
+    }
+}
+
+private fun DownloadKind.opposite(): DownloadKind {
+    return when (this) {
+        DownloadKind.AUDIO -> DownloadKind.VIDEO
+        DownloadKind.VIDEO -> DownloadKind.AUDIO
+    }
+}
+
+private fun DownloadKind.label(): String {
+    return when (this) {
+        DownloadKind.AUDIO -> "áudio"
+        DownloadKind.VIDEO -> "vídeo"
     }
 }
 

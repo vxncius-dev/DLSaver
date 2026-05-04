@@ -2,15 +2,25 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
+                         "versionCode":  6,
+                         "versionName":  "1.15.2",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.2/dlsaver_v1.15.2_arm64-v8a.apk",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.2/dlsaver_v1.15.2_arm64-v8a.apk",
+                         "notes":  "APK declarado como arm64-v8a, melhorias no fluxo de duplicados, seleção de qualidade para vídeos 720p+ e fallback seguro para downloads de áudio/vídeo",
+                         "publishedAt":  "2026-05-04T14:07:06Z",
+                         "sha256":  "6b0a30cc659b83abddb986fa4330dd36bec3fa458de4ce8299f4e820f0ad0aec",
+                         "sizeBytes":  85961673,
+                         "abi":  "arm64-v8a"
+                     },
+                     {
                          "versionCode":  5,
                          "versionName":  "1.15.0",
-                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0_arm64-v8a.apk",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0_arm64-v8a.apk",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0.apk",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0.apk",
                          "notes":  "Correções na lógica de atualização, melhoria no carregamento das letras e ajustes visuais simples na tela de configurações e player",
                          "publishedAt":  "2026-05-04T00:37:06Z",
-                         "sha256":  "c34ad63bc47a91827a778ba3cd8699ba9990aa202be21ef4b5243ab97d29effc",
-                         "sizeBytes":  85945289,
-                         "abi":  "arm64-v8a"
+                         "sha256":  "d31ff22e4ca1a255485c700097d02c206363fc74d12e8fde6e5583370456197a",
+                         "sizeBytes":  85928373
                      },
                      {
                          "versionCode":  4,

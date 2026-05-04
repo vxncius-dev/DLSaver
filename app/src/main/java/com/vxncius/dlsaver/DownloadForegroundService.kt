@@ -38,6 +38,7 @@ class DownloadForegroundService : Service() {
         val title = intent?.getStringExtra(EXTRA_TITLE).orEmpty().ifBlank { "DLSaver" }
         val thumbnailUrl = intent?.getStringExtra(EXTRA_THUMBNAIL).orEmpty()
         val kind = intent?.getStringExtra(EXTRA_KIND)?.let { DownloadKind.valueOf(it) } ?: DownloadKind.VIDEO
+        val videoMinHeight = intent?.getIntExtra(EXTRA_VIDEO_MIN_HEIGHT, 0) ?: 0
         val activeNotificationId = NotificationHelper.activeNotificationIdFor(jobId)
         val historyNotificationId = NotificationHelper.historyNotificationIdFor(jobId)
         val contentIntent = PendingIntent.getActivity(
@@ -134,6 +135,7 @@ class DownloadForegroundService : Service() {
                     ffmpegPath = binaries.ffmpeg,
                     aria2cPath = binaries.aria2c,
                     audioOnly = kind == DownloadKind.AUDIO,
+                    videoMinHeight = if (kind == DownloadKind.VIDEO) videoMinHeight else 0,
                     callback = callback
                 )
             }.onSuccess { result ->
@@ -156,6 +158,7 @@ class DownloadForegroundService : Service() {
                                 sourceUrl = url,
                                 thumbnailUrl = thumbnailUrl,
                                 kind = kind,
+                                videoMinHeight = videoMinHeight,
                                 status = DownloadJobStatus.FAILED,
                                 statusText = "Falha no download",
                                 log = result.log
@@ -232,6 +235,7 @@ class DownloadForegroundService : Service() {
                                 sourceUrl = url,
                                 thumbnailUrl = thumbnailUrl,
                                 kind = kind,
+                                videoMinHeight = videoMinHeight,
                                 status = DownloadJobStatus.FAILED,
                                 statusText = "Falha no download",
                                 log = message
@@ -285,6 +289,7 @@ class DownloadForegroundService : Service() {
         private const val EXTRA_TITLE = "extra_title"
         private const val EXTRA_THUMBNAIL = "extra_thumbnail"
         private const val EXTRA_KIND = "extra_kind"
+        private const val EXTRA_VIDEO_MIN_HEIGHT = "extra_video_min_height"
         private val runningJobs = ConcurrentHashMap<String, Job>()
         private val cancelledJobs = ConcurrentHashMap.newKeySet<String>()
 
@@ -302,7 +307,8 @@ class DownloadForegroundService : Service() {
             url: String,
             title: String,
             thumbnailUrl: String,
-            kind: DownloadKind
+            kind: DownloadKind,
+            videoMinHeight: Int = 0
         ): Intent {
             return Intent(context, DownloadForegroundService::class.java).apply {
                 putExtra(EXTRA_JOB_ID, jobId)
@@ -310,6 +316,7 @@ class DownloadForegroundService : Service() {
                 putExtra(EXTRA_TITLE, title)
                 putExtra(EXTRA_THUMBNAIL, thumbnailUrl)
                 putExtra(EXTRA_KIND, kind.name)
+                putExtra(EXTRA_VIDEO_MIN_HEIGHT, videoMinHeight)
             }
         }
 

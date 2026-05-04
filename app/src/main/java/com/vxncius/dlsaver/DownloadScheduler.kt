@@ -39,7 +39,8 @@ object DownloadScheduler {
                         url = job.sourceUrl,
                         title = job.title,
                         thumbnailUrl = job.thumbnailUrl,
-                        kind = job.kind
+                        kind = job.kind,
+                        videoMinHeight = job.videoMinHeight
                     )
                 )
             }

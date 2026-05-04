@@ -253,6 +253,31 @@ def list_playlist(url, page=0, page_size=20):
     return json.dumps({"title": title, "items": items, "has_more": has_more})
 
 
+def list_video_qualities(url):
+    if not _is_url(url):
+        raise ValueError("list_video_qualities espera uma URL valida")
+
+    info = _extract_info(url)
+    formats = info.get("formats") or []
+    heights = set()
+    for fmt in formats:
+        if not isinstance(fmt, dict):
+            continue
+        height = fmt.get("height")
+        vcodec = fmt.get("vcodec") or ""
+        if isinstance(height, int) and height > 0 and vcodec != "none":
+            heights.add(height)
+
+    items = [
+        {
+            "height": height,
+            "label": f"{height}p" + (" (melhor disponivel)" if height == max(heights) else ""),
+        }
+        for height in sorted(heights, reverse=True)
+    ] if heights else []
+    return json.dumps({"items": items})
+
+
 def inspect_url(url):
     if not _is_url(url):
         raise ValueError("inspect_url espera uma URL valida")
@@ -298,7 +323,17 @@ def inspect_url(url):
     )
 
 
-def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only):
+def _video_format(video_min_height):
+    target_height = int(video_min_height or 0)
+    if target_height > 0:
+        return (
+            f"bestvideo[height<={target_height}]+bestaudio/best[height<={target_height}]/"
+            "bestvideo+bestaudio/best"
+        )
+    return "bestvideo[height>=720]+bestaudio/best[height>=720]/bestvideo+bestaudio/best"
+
+
+def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height=0):
     output_template = os.path.join(output_dir, "%(title)s.%(ext)s")
     command = []
 
@@ -331,6 +366,9 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
         ]
     )
 
+    if ffmpeg_path and os.path.exists(ffmpeg_path):
+        command.extend(["--ffmpeg-location", os.path.dirname(ffmpeg_path)])
+
     if aria2c_path and os.path.exists(aria2c_path):
         command.extend(
             [
@@ -347,13 +385,13 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
             "bestaudio[ext=m4a]/bestaudio/best",
         ])
     else:
-        command.extend(["-f", "best[ext=mp4][vcodec!*=none][acodec!*=none]/best[ext=mp4]/best"])
+        command.extend(["-f", _video_format(video_min_height), "--merge-output-format", "mp4"])
 
     command.append(url)
     return command
 
 
-def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback):
+def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback, video_min_height=0):
     output_template = os.path.join(temp_dir, "%(title)s.%(ext)s")
     progress_state = {"last": 0.0}
 
@@ -397,12 +435,14 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
         options["external_downloader"] = aria2c_path
         options["external_downloader_args"] = _aria2c_args()
 
+    if ffmpeg_path and os.path.exists(ffmpeg_path):
+        options["ffmpeg_location"] = os.path.dirname(ffmpeg_path)
+
     if audio_only:
         options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
-        if ffmpeg_path and os.path.exists(ffmpeg_path):
-            options["ffmpeg_location"] = os.path.dirname(ffmpeg_path)
     else:
-        options["format"] = "best[ext=mp4][vcodec!*=none][acodec!*=none]/best[ext=mp4]/best"
+        options["format"] = _video_format(video_min_height)
+        options["merge_output_format"] = "mp4"
 
     return options
 
@@ -564,7 +604,7 @@ def _env_snapshot(env):
     return {key: env.get(key, "") for key in interesting_keys}
 
 
-def _debug_header(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, command, env):
+def _debug_header(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height, command, env):
     return [
         "=== DLSaver Debug ===",
         f"python_executable={sys.executable}",
@@ -572,6 +612,7 @@ def _debug_header(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_on
         f"platform={platform.platform()}",
         f"url={url}",
         f"audio_only={audio_only}",
+        f"video_min_height={video_min_height}",
         f"temp_dir={temp_dir}",
         f"yt_dlp_path={yt_dlp_path or '<python module>'}",
         f"aria2c_path={aria2c_path or '<none>'}",
@@ -656,7 +697,7 @@ def _convert_audio_to_flac(input_file, ffmpeg_path, lines, callback):
     return None
 
 
-def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", audio_only=False, callback=None):
+def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", audio_only=False, video_min_height=0, callback=None):
     if not _is_url(url):
         raise ValueError("run_download espera uma URL valida")
 
@@ -673,10 +714,11 @@ def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", 
     env["PYTHONPYCACHEPREFIX"] = os.path.join(temp_dir, "pycache")
     env["YTDLP_NO_UPDATE"] = "1"
 
+    video_min_height = int(video_min_height or 0)
     use_external_yt_dlp = bool(yt_dlp_path and os.path.exists(yt_dlp_path))
-    command = _build_command(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only)
+    command = _build_command(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height)
     mode = "external-binary" if use_external_yt_dlp else "python-api"
-    lines = _debug_header(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, command, env)
+    lines = _debug_header(url, temp_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height, command, env)
     lines.insert(1, f"mode={mode}")
 
     try:
@@ -720,7 +762,7 @@ def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", 
 
             exit_code = process.wait()
         else:
-            options = _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback)
+            options = _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback, video_min_height)
             _append_log(lines, "=== Python API Options ===")
             _append_log(lines, json.dumps({
                 "outtmpl": options["outtmpl"],
@@ -731,6 +773,8 @@ def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", 
                 "external_downloader": options.get("external_downloader", ""),
                 "external_downloader_args": options.get("external_downloader_args", {}),
                 "format": options.get("format", ""),
+                "ffmpeg_location": options.get("ffmpeg_location", ""),
+                "merge_output_format": options.get("merge_output_format", ""),
             }, ensure_ascii=False))
             _notify(callback, 0.0, "Baixando...", "Executando yt-dlp pela API Python")
             with yt_dlp.YoutubeDL(options) as ydl:
@@ -740,7 +784,7 @@ def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", 
         if (exit_code != 0 or not _collect_exportable_files(temp_dir)) and aria2c_path and not use_external_yt_dlp:
             _append_log(lines, "=== Retry Without aria2c ===")
             _notify(callback, 0.0, "Tentando novamente sem acelerador...", "Retry sem aria2c")
-            options = _yt_dlp_api_options(temp_dir, ffmpeg_path, "", audio_only, callback)
+            options = _yt_dlp_api_options(temp_dir, ffmpeg_path, "", audio_only, callback, video_min_height)
             _append_log(lines, json.dumps({
                 "outtmpl": options["outtmpl"],
                 "paths": options["paths"],

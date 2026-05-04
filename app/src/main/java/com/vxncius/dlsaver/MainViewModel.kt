@@ -205,7 +205,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
-    fun downloadResult(item: SearchResultItem, kind: DownloadKind): DownloadEnqueueResult {
+    fun downloadResult(item: SearchResultItem, kind: DownloadKind, videoMinHeight: Int = 0): DownloadEnqueueResult {
         val sanitizedTitle = sanitizeDownloadTitle(item.title)
         return startDownload(
             url = item.url,
@@ -217,7 +217,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     ""
                 }
             },
-            kind = kind
+            kind = kind,
+            videoMinHeight = if (kind == DownloadKind.VIDEO) videoMinHeight else 0
         )
     }
 
@@ -321,7 +322,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun startDownload(url: String, title: String, thumbnailUrl: String, kind: DownloadKind): DownloadEnqueueResult {
+    private fun startDownload(
+        url: String,
+        title: String,
+        thumbnailUrl: String,
+        kind: DownloadKind,
+        videoMinHeight: Int = 0
+    ): DownloadEnqueueResult {
         val context = getApplication<Application>()
         val duplicateStatus = duplicateStatusFor(url, title, kind)
         if (duplicateStatus != null) {
@@ -334,7 +341,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return DownloadEnqueueResult(duplicateStatus, title, ignoredCount = 1)
         }
         val jobId = UUID.randomUUID().toString()
-        DownloadStateStore.enqueueDownload(jobId, title, url, thumbnailUrl, kind)
+        DownloadStateStore.enqueueDownload(jobId, title, url, thumbnailUrl, kind, videoMinHeight)
         DownloadJobPersistence.upsertJob(
             context,
             DownloadStateStore.uiState.value.downloadJobs.first { it.id == jobId }

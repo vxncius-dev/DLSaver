@@ -7,6 +7,8 @@ interface DownloadEngine {
 
     fun listPlaylist(url: String, page: Int, pageSize: Int = 20): PlaylistPage
 
+    fun listVideoQualities(url: String): List<VideoQualityOption>
+
     fun download(
         url: String,
         tempDir: String,
@@ -14,6 +16,7 @@ interface DownloadEngine {
         ffmpegPath: String,
         aria2cPath: String,
         audioOnly: Boolean,
+        videoMinHeight: Int,
         callback: PythonProgressCallback
     ): DownloadResult
 }
@@ -21,4 +24,3 @@ interface DownloadEngine {
 object DownloadEngines {
     val current: DownloadEngine = PythonYtDlpDownloadEngine
 }
-

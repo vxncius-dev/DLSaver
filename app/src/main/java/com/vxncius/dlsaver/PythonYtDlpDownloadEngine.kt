@@ -13,6 +13,10 @@ object PythonYtDlpDownloadEngine : DownloadEngine {
         return DownloaderBridge.listPlaylist(url, page, pageSize)
     }
 
+    override fun listVideoQualities(url: String): List<VideoQualityOption> {
+        return DownloaderBridge.listVideoQualities(url)
+    }
+
     override fun download(
         url: String,
         tempDir: String,
@@ -20,6 +24,7 @@ object PythonYtDlpDownloadEngine : DownloadEngine {
         ffmpegPath: String,
         aria2cPath: String,
         audioOnly: Boolean,
+        videoMinHeight: Int,
         callback: PythonProgressCallback
     ): DownloadResult {
         return DownloaderBridge.download(
@@ -29,8 +34,8 @@ object PythonYtDlpDownloadEngine : DownloadEngine {
             ffmpegPath = ffmpegPath,
             aria2cPath = aria2cPath,
             audioOnly = audioOnly,
+            videoMinHeight = videoMinHeight,
             callback = callback
         )
     }
 }
-

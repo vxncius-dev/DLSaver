@@ -227,7 +227,14 @@ object DownloadStateStore {
         }
     }
 
-    fun enqueueDownload(jobId: String, target: String, sourceUrl: String, thumbnailUrl: String, kind: DownloadKind) {
+    fun enqueueDownload(
+        jobId: String,
+        target: String,
+        sourceUrl: String,
+        thumbnailUrl: String,
+        kind: DownloadKind,
+        videoMinHeight: Int = 0
+    ) {
         _uiState.update {
             val newJob = DownloadJobItem(
                 id = jobId,
@@ -235,6 +242,7 @@ object DownloadStateStore {
                 sourceUrl = sourceUrl,
                 thumbnailUrl = thumbnailUrl,
                 kind = kind,
+                videoMinHeight = videoMinHeight,
                 status = DownloadJobStatus.QUEUED,
                 progress = 0f,
                 statusText = "Na fila..."

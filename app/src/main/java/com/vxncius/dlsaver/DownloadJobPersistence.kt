@@ -90,6 +90,7 @@ object DownloadJobPersistence {
             put("sourceUrl", sourceUrl)
             put("thumbnailUrl", thumbnailUrl)
             put("kind", kind.name)
+            put("videoMinHeight", videoMinHeight)
             put("status", status.name)
             put("progress", progress.toDouble())
             put("statusText", statusText)
@@ -111,6 +112,7 @@ object DownloadJobPersistence {
             sourceUrl = optString("sourceUrl"),
             thumbnailUrl = optString("thumbnailUrl"),
             kind = runCatching { DownloadKind.valueOf(optString("kind")) }.getOrDefault(DownloadKind.VIDEO),
+            videoMinHeight = optInt("videoMinHeight", 0),
             status = runCatching { DownloadJobStatus.valueOf(optString("status")) }.getOrDefault(DownloadJobStatus.FAILED),
             progress = optDouble("progress", 0.0).toFloat(),
             statusText = optString("statusText").ifBlank { "Falha no download" },

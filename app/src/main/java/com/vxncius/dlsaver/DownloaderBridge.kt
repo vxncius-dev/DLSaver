@@ -29,6 +29,22 @@ object DownloaderBridge {
         return PlaylistPage(title = title, items = items, hasMore = hasMore)
     }
 
+    fun listVideoQualities(url: String): List<VideoQualityOption> {
+        val module = Python.getInstance().getModule("downloader")
+        val resultJson = module.callAttr("list_video_qualities", url).toString()
+        val json = JSONObject(resultJson)
+        val items = json.optJSONArray("items") ?: JSONArray()
+        return buildList {
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val height = item.optInt("height", 0)
+                if (height > 0) {
+                    add(VideoQualityOption(height = height, label = item.optString("label").ifBlank { "${height}p" }))
+                }
+            }
+        }.distinctBy { it.height }.sortedByDescending { it.height }
+    }
+
     fun download(
         url: String,
         tempDir: String,
@@ -36,6 +52,7 @@ object DownloaderBridge {
         ffmpegPath: String,
         aria2cPath: String,
         audioOnly: Boolean,
+        videoMinHeight: Int,
         callback: PythonProgressCallback
     ): DownloadResult {
         val module = Python.getInstance().getModule("downloader")
@@ -47,6 +64,7 @@ object DownloaderBridge {
             ffmpegPath,
             aria2cPath,
             audioOnly,
+            videoMinHeight,
             callback
         ).toString()
 
