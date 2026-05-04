@@ -2,6 +2,17 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
+                         "versionCode":  6,
+                         "versionName":  "1.15.2",
+                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.2/dlsaver_v1.15.2_arm64-v8a.apk",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.2/dlsaver_v1.15.2_arm64-v8a.apk",
+                         "notes":  "APK declarado como arm64-v8a, melhorias no fluxo de duplicados, seleção de qualidade para vídeos 720p+ e fallback seguro para downloads de áudio/vídeo",
+                         "publishedAt":  "2026-05-04T14:07:06Z",
+                         "sha256":  "6b0a30cc659b83abddb986fa4330dd36bec3fa458de4ce8299f4e820f0ad0aec",
+                         "sizeBytes":  85961673,
+                         "abi":  "arm64-v8a"
+                     },
+                     {
                          "versionCode":  5,
                          "versionName":  "1.15.0",
                          "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0.apk",
