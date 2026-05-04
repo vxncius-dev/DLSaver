@@ -4,9 +4,10 @@
                      {
                          "versionCode":  5,
                          "versionName":  "1.15.0",
-                         "apkPath":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0.apk",
+                         "apkPath":  "releases/dlsaver_v1.15.0.apk",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.0/dlsaver_v1.15.0.apk",
                          "notes":  "Correções na lógica de atualização, melhoria no carregamento das letras e ajustes visuais simples na tela de configurações e player",
-                         "publishedAt":  "2026-05-04T00:31:35Z",
+                         "publishedAt":  "2026-05-04T00:34:58Z",
                          "sha256":  "f2af1fbee85d2ddb3c81c6aa18446529d5f3bdc2e4cefb0a2f2311e7bd3d20f8",
                          "sizeBytes":  85928373
                      },
