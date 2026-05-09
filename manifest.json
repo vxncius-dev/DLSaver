@@ -2,12 +2,12 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
-                         "versionCode":  6,
-                         "versionName":  "1.15.2",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.2/dlsaver_v1.15.2_arm64-v8a.apk",
-                         "notes":  "APK declarado como arm64-v8a, melhorias no fluxo de duplicados, seleção de qualidade para vídeos 720p+ e fallback seguro para downloads de áudio/vídeo",
-                         "publishedAt":  "2026-05-04T14:16:57Z",
-                         "sha256":  "6b0a30cc659b83abddb986fa4330dd36bec3fa458de4ce8299f4e820f0ad0aec",
+                         "versionCode":  7,
+                         "versionName":  "1.15.3",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.3/dlsaver_v1.15.3_arm64-v8a.apk",
+                         "notes":  "Android arm64-v8a com modo Labs para preview de video nos resultados, cache temporario de streams, botao de download multiplo em playlists e ajustes nos icones de selecao",
+                         "publishedAt":  "2026-05-09T10:55:44Z",
+                         "sha256":  "62dcb3ed5f91e87fcb9a8eb915a8e35530f48e780f0a60db1441e6ee1f0e5f6a",
                          "sizeBytes":  85961673,
                          "abi":  "arm64-v8a"
                      }

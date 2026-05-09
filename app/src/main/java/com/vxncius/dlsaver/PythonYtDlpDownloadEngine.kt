@@ -17,6 +17,10 @@ object PythonYtDlpDownloadEngine : DownloadEngine {
         return DownloaderBridge.listVideoQualities(url)
     }
 
+    override fun previewStreamUrl(url: String): String {
+        return DownloaderBridge.previewStreamUrl(url)
+    }
+
     override fun download(
         url: String,
         tempDir: String,

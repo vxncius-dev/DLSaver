@@ -9,6 +9,8 @@ interface DownloadEngine {
 
     fun listVideoQualities(url: String): List<VideoQualityOption>
 
+    fun previewStreamUrl(url: String): String
+
     fun download(
         url: String,
         tempDir: String,

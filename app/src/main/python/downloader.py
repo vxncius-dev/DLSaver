@@ -278,6 +278,38 @@ def list_video_qualities(url):
     return json.dumps({"items": items})
 
 
+def preview_stream_url(url):
+    if not _is_url(url):
+        raise ValueError("preview_stream_url espera uma URL valida")
+
+    info = _extract_info(url)
+    formats = info.get("formats") or []
+    candidates = []
+    for fmt in formats:
+        if not isinstance(fmt, dict):
+            continue
+        stream_url = fmt.get("url") or ""
+        vcodec = fmt.get("vcodec") or ""
+        if not stream_url or vcodec == "none":
+            continue
+        protocol = (fmt.get("protocol") or "").lower()
+        ext = (fmt.get("ext") or "").lower()
+        height = int(fmt.get("height") or 0)
+        preference = 0
+        if "m3u8" in protocol or ext == "m3u8":
+            preference += 1000
+        if height > 0:
+            preference += min(height, 1080)
+        candidates.append((preference, stream_url))
+
+    if candidates:
+        stream_url = max(candidates, key=lambda item: item[0])[1]
+    else:
+        stream_url = info.get("url") or ""
+
+    return json.dumps({"url": stream_url.replace("http://", "https://", 1)})
+
+
 def inspect_url(url):
     if not _is_url(url):
         raise ValueError("inspect_url espera uma URL valida")

@@ -260,11 +260,17 @@ fun DLSaverRoot(
     var playerOpen by rememberSaveable { mutableStateOf(false) }
     var videoPlayerOpen by rememberSaveable { mutableStateOf(false) }
     var videoPlayerFullscreen by rememberSaveable { mutableStateOf(false) }
+    var videoPlayerFromInlinePreview by rememberSaveable { mutableStateOf(false) }
     var pendingPlayerOpenRequest by rememberSaveable { mutableStateOf(false) }
     var pendingRequestedPlayerKind by rememberSaveable { mutableStateOf<DownloadKind?>(null) }
     var lastBackPressAt by remember { mutableStateOf(0L) }
     var homeInputFocusNonce by remember { mutableStateOf(0) }
     var playerMonochromatic by remember { mutableStateOf(AppPreferences.isPlayerMonochromatic(context)) }
+    var labsModeEnabled by remember { mutableStateOf(AppPreferences.isLabsModeEnabled(context)) }
+    var inlinePreviewItem by remember { mutableStateOf<SearchResultItem?>(null) }
+    var inlinePreviewLoadingUrl by remember { mutableStateOf("") }
+    var inlinePreviewError by remember { mutableStateOf("") }
+    var inlinePreviewCache by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var settingsReturnScreen by rememberSaveable { mutableStateOf(AppScreen.HOME) }
     var settingsDocumentAssetPath by rememberSaveable { mutableStateOf("") }
     var librarySearchActive by rememberSaveable { mutableStateOf(false) }
@@ -333,9 +339,56 @@ fun DLSaverRoot(
         }
     }
 
+    fun startInlinePreview(item: SearchResultItem) {
+        if (!labsModeEnabled || item.resultType == "playlist") return
+        inlinePreviewItem = item
+        inlinePreviewError = ""
+        val cached = inlinePreviewCache[item.url]
+        if (!cached.isNullOrBlank()) {
+            scope.launch {
+                MediaPlayback.playExternalVideo(context.applicationContext, Uri.parse(cached), item.title)
+            }
+            return
+        }
+        inlinePreviewLoadingUrl = item.url
+        scope.launch {
+            val streamUrl = runCatching {
+                withContext(Dispatchers.IO) {
+                    DownloadEngines.current.previewStreamUrl(item.url)
+                }
+            }
+            inlinePreviewLoadingUrl = ""
+            streamUrl.onSuccess { url ->
+                if (url.isBlank()) {
+                    inlinePreviewError = "Não consegui abrir o preview desse item"
+                    return@onSuccess
+                }
+                inlinePreviewCache = inlinePreviewCache + (item.url to url)
+                MediaPlayback.playExternalVideo(context.applicationContext, Uri.parse(url), item.title)
+            }.onFailure {
+                inlinePreviewError = "Falha ao buscar preview"
+            }
+        }
+    }
+
     LaunchedEffect(state.screen) {
         if (state.screen != AppScreen.SETTINGS && state.screen != AppScreen.SETTINGS_DOCUMENT) {
             settingsReturnScreen = state.screen
+        }
+        if (state.screen != AppScreen.LIST_ITEMS_FOR_DOWNLOAD) {
+            inlinePreviewCache = emptyMap()
+            inlinePreviewItem = null
+            inlinePreviewLoadingUrl = ""
+            inlinePreviewError = ""
+        }
+    }
+
+    LaunchedEffect(labsModeEnabled) {
+        if (!labsModeEnabled && inlinePreviewItem != null) {
+            inlinePreviewItem = null
+            inlinePreviewLoadingUrl = ""
+            inlinePreviewError = ""
+            onStopPlayback()
         }
     }
 
@@ -351,10 +404,12 @@ fun DLSaverRoot(
         if (pendingPlayerOpenRequest) {
             if (pendingRequestedPlayerKind == DownloadKind.VIDEO || playbackUiState.isVideo) {
                 videoPlayerOpen = true
+                videoPlayerFromInlinePreview = false
                 playerOpen = false
             } else {
                 playerOpen = true
                 videoPlayerOpen = false
+                videoPlayerFromInlinePreview = false
             }
             pendingPlayerOpenRequest = false
             pendingRequestedPlayerKind = null
@@ -364,12 +419,17 @@ fun DLSaverRoot(
     BackHandler {
         if (videoPlayerOpen) {
             if (videoPlayerFullscreen) {
+                if (videoPlayerFromInlinePreview) {
+                    videoPlayerOpen = false
+                    videoPlayerFromInlinePreview = false
+                }
                 videoPlayerFullscreen = false
                 return@BackHandler
             }
             videoPlayerOpen = false
             videoPlayerFullscreen = false
-            onStopPlayback()
+            if (!videoPlayerFromInlinePreview) onStopPlayback()
+            videoPlayerFromInlinePreview = false
             return@BackHandler
         }
         if (playerOpen) {
@@ -403,6 +463,7 @@ fun DLSaverRoot(
             playerOpen = false
             videoPlayerOpen = false
             videoPlayerFullscreen = false
+            videoPlayerFromInlinePreview = false
             pendingPlayerOpenRequest = false
         }
     }
@@ -669,6 +730,25 @@ fun DLSaverRoot(
                     state = state,
                     onLoadMore = onLoadMore,
                     onDownloadClick = { dialogItem = it },
+                    labsModeEnabled = labsModeEnabled,
+                    previewItem = inlinePreviewItem,
+                    previewLoading = inlinePreviewLoadingUrl.isNotBlank(),
+                    previewError = inlinePreviewError,
+                    playbackUiState = playbackUiState,
+                    onPreviewClick = { startInlinePreview(it) },
+                    onClosePreview = {
+                        inlinePreviewItem = null
+                        inlinePreviewLoadingUrl = ""
+                        inlinePreviewError = ""
+                        onStopPlayback()
+                    },
+                    onFullscreenPreview = {
+                        videoPlayerOpen = true
+                        videoPlayerFullscreen = true
+                        videoPlayerFromInlinePreview = true
+                    },
+                    onTogglePreviewPlayPause = onTogglePlayPause,
+                    onSeekPreviewTo = onSeekTo,
                     onOpenPlaylist = onOpenPlaylist,
                     onSetSelectionMode = onSetSelectionMode,
                     onToggleSelectAll = onToggleSelectAll,
@@ -712,6 +792,7 @@ fun DLSaverRoot(
                             LibraryDataStore.recordPlaybackStart(context, item)
                             onPlayExistingVideo(item)
                             videoPlayerOpen = true
+                            videoPlayerFromInlinePreview = false
                         }
                     }
                 )
@@ -719,6 +800,7 @@ fun DLSaverRoot(
                 AppScreen.SETTINGS -> SettingsHubScreen(
                     state = state,
                     playerMonochromatic = playerMonochromatic,
+                    labsModeEnabled = labsModeEnabled,
                     downloadPermissionGranted = downloadPermissionGranted,
                     notificationPermissionGranted = notificationPermissionGranted,
                     mediaPermissionsGranted = mediaPermissionsGranted,
@@ -733,6 +815,10 @@ fun DLSaverRoot(
                     onTogglePlayerMonochromatic = { enabled ->
                         playerMonochromatic = enabled
                         AppPreferences.setPlayerMonochromatic(context, enabled)
+                    },
+                    onToggleLabsMode = { enabled ->
+                        labsModeEnabled = enabled
+                        AppPreferences.setLabsModeEnabled(context, enabled)
                     },
                     onOpenTerms = {
                         settingsDocumentAssetPath = "file:///android_asset/termos_uso.html"
@@ -798,11 +884,18 @@ fun DLSaverRoot(
                 onDismiss = {
                     videoPlayerOpen = false
                     videoPlayerFullscreen = false
-                    onStopPlayback()
+                    if (!videoPlayerFromInlinePreview) onStopPlayback()
+                    videoPlayerFromInlinePreview = false
                 },
                 onOpenItemMenu = { item -> playbackMenuItem = item },
                 isFullscreen = videoPlayerFullscreen,
-                onFullscreenChange = { videoPlayerFullscreen = it },
+                onFullscreenChange = { fullscreen ->
+                    videoPlayerFullscreen = fullscreen
+                    if (videoPlayerFromInlinePreview && !fullscreen) {
+                        videoPlayerOpen = false
+                        videoPlayerFromInlinePreview = false
+                    }
+                },
                 onTogglePlayPause = onTogglePlayPause,
                 onSeekTo = onSeekTo
             )
@@ -823,6 +916,7 @@ fun DLSaverRoot(
                     playerOpen = false
                     videoPlayerOpen = false
                     videoPlayerFullscreen = false
+                    videoPlayerFromInlinePreview = false
                     renameItem = item
                     playbackMenuItem = null
                 },
@@ -831,6 +925,7 @@ fun DLSaverRoot(
                     playerOpen = false
                     videoPlayerOpen = false
                     videoPlayerFullscreen = false
+                    videoPlayerFromInlinePreview = false
                     detailsItem = item
                     playbackMenuItem = null
                 },
@@ -839,6 +934,7 @@ fun DLSaverRoot(
                     playerOpen = false
                     videoPlayerOpen = false
                     videoPlayerFullscreen = false
+                    videoPlayerFromInlinePreview = false
                     deleteItem = item
                     playbackMenuItem = null
                 }
@@ -974,6 +1070,16 @@ private fun ResultListScreen(
     state: DownloadUiState,
     onLoadMore: () -> Unit,
     onDownloadClick: (SearchResultItem) -> Unit,
+    labsModeEnabled: Boolean,
+    previewItem: SearchResultItem?,
+    previewLoading: Boolean,
+    previewError: String,
+    playbackUiState: PlaybackUiState,
+    onPreviewClick: (SearchResultItem) -> Unit,
+    onClosePreview: () -> Unit,
+    onFullscreenPreview: () -> Unit,
+    onTogglePreviewPlayPause: () -> Unit,
+    onSeekPreviewTo: (Long) -> Unit,
     onOpenPlaylist: (String) -> Unit,
     onSetSelectionMode: (Boolean) -> Unit,
     onToggleSelectAll: () -> Unit,
@@ -988,8 +1094,13 @@ private fun ResultListScreen(
         start = 7.dp,
         end = 7.dp,
         top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 15.dp,
-        bottom = if (isPlaylistMode) 108.dp else 20.dp
+        bottom = if (isPlaylistMode) 116.dp else 20.dp
     )
+    val previewIndex = previewItem?.let { current ->
+        state.searchResults.indexOfFirst { it.url == current.url }
+    } ?: -1
+    val nextPreviewItem = state.searchResults.getOrNull(previewIndex + 1)
+        ?.takeIf { previewIndex >= 0 && it.resultType != "playlist" }
 
     if (state.isSearching && state.searchResults.isEmpty()) {
         LazyColumn(
@@ -1053,6 +1164,24 @@ private fun ResultListScreen(
                 }
             }
 
+            if (labsModeEnabled && previewItem != null) {
+                item("inline_preview") {
+                    SearchInlineVideoPreview(
+                        item = previewItem,
+                        nextItem = nextPreviewItem,
+                        loading = previewLoading,
+                        error = previewError,
+                        playbackUiState = playbackUiState,
+                        onClose = onClosePreview,
+                        onFullscreen = onFullscreenPreview,
+                        onTogglePlayPause = onTogglePreviewPlayPause,
+                        onSeekTo = onSeekPreviewTo,
+                        onPlayNext = onPreviewClick,
+                        modifier = Modifier.padding(horizontal = 10.dp)
+                    )
+                }
+            }
+
             itemsIndexed(
                 items = state.searchResults,
                 key = { _, item -> item.url },
@@ -1062,6 +1191,11 @@ private fun ResultListScreen(
                     SearchResultSelectableRow(
                         item = item,
                         selected = item.url in state.selectedUrls,
+                        onPreview = if (labsModeEnabled && item.resultType != "playlist") {
+                            { onPreviewClick(item) }
+                        } else {
+                            null
+                        },
                         onToggle = {
                             if (!state.selectionMode) onSetSelectionMode(true)
                             onToggleSelected(item.url)
@@ -1070,6 +1204,15 @@ private fun ResultListScreen(
                 } else {
                     SearchResultRow(
                         item = item,
+                        onItemClick = {
+                            if (item.resultType == "playlist") {
+                                onOpenPlaylist(item.url)
+                            } else if (labsModeEnabled) {
+                                onPreviewClick(item)
+                            } else {
+                                onDownloadClick(item)
+                            }
+                        },
                         onDownload = {
                             if (item.resultType == "playlist") {
                                 onOpenPlaylist(item.url)
@@ -1085,6 +1228,22 @@ private fun ResultListScreen(
                 item("loading_more_shimmer") {
                     ShimmerResultPlaceholder()
                 }
+            }
+        }
+
+        if (isPlaylistMode && state.selectedUrls.isNotEmpty()) {
+            Button(
+                onClick = onOpenMultiDownloadSheet,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .windowInsetsPadding(WindowInsets.navigationBars.only(WindowInsetsSides.Bottom))
+                    .padding(horizontal = 24.dp, vertical = 18.dp)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp)
+            ) {
+                Icon(Icons.Default.DownloadForOffline, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Baixar ${state.selectedUrls.size} selecionado(s)")
             }
         }
     }
@@ -1323,15 +1482,202 @@ private fun DownloadsScreen(
         )
     }
 }
+
+@Composable
+private fun SearchInlineVideoPreview(
+    item: SearchResultItem,
+    nextItem: SearchResultItem?,
+    loading: Boolean,
+    error: String,
+    playbackUiState: PlaybackUiState,
+    onClose: () -> Unit,
+    onFullscreen: () -> Unit,
+    onTogglePlayPause: () -> Unit,
+    onSeekTo: (Long) -> Unit,
+    onPlayNext: (SearchResultItem) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val playerView = remember(context) {
+        PlayerView(context).apply {
+            setUseController(false)
+            setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT)
+            setBackgroundColor(android.graphics.Color.BLACK)
+            setKeepContentOnPlayerReset(true)
+            keepScreenOn = true
+        }
+    }
+    var controller by remember { mutableStateOf<MediaController?>(null) }
+    val duration = playbackUiState.durationMs.coerceAtLeast(0L)
+    val position = playbackUiState.positionMs.coerceIn(0L, if (duration > 0L) duration else Long.MAX_VALUE)
+    val sliderValue = if (duration > 0L) position.toFloat() / duration.toFloat() else 0f
+    val showNextCard = nextItem != null &&
+        duration > 0L &&
+        !playbackUiState.isPlaying &&
+        position >= (duration - 900L).coerceAtLeast(0L)
+
+    LaunchedEffect(Unit) {
+        controller = MediaPlayback.connect(context)
+    }
+
+    DisposableEffect(controller, playerView) {
+        playerView.player = controller
+        onDispose {
+            if (playerView.player === controller) {
+                playerView.player = null
+            }
+        }
+    }
+
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(
+                    factory = { playerView },
+                    update = { it.player = controller },
+                    modifier = Modifier.fillMaxSize()
+                )
+
+                if (loading) {
+                    CircularProgressIndicator(modifier = Modifier.size(34.dp), strokeWidth = 3.dp)
+                } else if (error.isNotBlank()) {
+                    Text(
+                        text = error,
+                        color = Color.White,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(16.dp)
+                    )
+                } else {
+                    IconButton(
+                        onClick = onTogglePlayPause,
+                        modifier = Modifier
+                            .size(68.dp)
+                            .background(Color.Black.copy(alpha = 0.36f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (playbackUiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (playbackUiState.isPlaying) "Pausar" else "Reproduzir",
+                            tint = Color.White,
+                            modifier = Modifier.size(44.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    IconButton(onClick = onFullscreen) {
+                        Icon(Icons.Default.Fullscreen, contentDescription = "Abrir em tela cheia", tint = Color.White)
+                    }
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.Close, contentDescription = "Fechar preview", tint = Color.White)
+                    }
+                }
+
+                if (showNextCard) {
+                    NextPreviewCard(
+                        item = nextItem,
+                        onClick = { onPlayNext(nextItem) },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(10.dp)
+                            .fillMaxWidth(0.74f)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = item.title.ifBlank { "Video" },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(formatTime(position), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    PlayerSeekBar(
+                        modifier = Modifier.weight(1f),
+                        fraction = sliderValue,
+                        onFractionChange = { value ->
+                            if (duration > 0L) onSeekTo((duration * value).toLong())
+                        }
+                    )
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(formatTime(duration), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NextPreviewCard(
+    item: SearchResultItem,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black.copy(alpha = 0.82f))
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        ThumbnailBox(
+            url = itemThumbnailUrl(item),
+            fallbackUrl = fallbackThumbnailUrlFor(item),
+            kind = if (item.resultType == "audio") DownloadKind.AUDIO else DownloadKind.VIDEO,
+            preferCover = shouldUseCoverThumbnail(item.resultType, item.url)
+        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = "Próximo",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
+    }
+}
+
 @Composable
 private fun SearchResultRow(
     item: SearchResultItem,
+    onItemClick: () -> Unit,
     onDownload: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onDownload),
+            .clickable(onClick = onItemClick),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Row(
@@ -1504,12 +1850,13 @@ private fun PlaylistHeader(
 private fun SearchResultSelectableRow(
     item: SearchResultItem,
     selected: Boolean,
+    onPreview: (() -> Unit)?,
     onToggle: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onToggle),
+            .clickable(onClick = onPreview ?: onToggle),
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Row(
@@ -1543,6 +1890,11 @@ private fun SearchResultSelectableRow(
             Icon(
                 imageVector = if (selected) Icons.Default.Check else Icons.Default.CheckBoxOutlineBlank,
                 contentDescription = if (selected) "Selecionado" else "Não selecionado",
+                modifier = Modifier
+                    .size(32.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onToggle)
+                    .padding(4.dp),
                 // tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -2356,6 +2708,7 @@ private fun SettingsInfoItem(
 private fun SettingsHubScreen(
     state: DownloadUiState,
     playerMonochromatic: Boolean,
+    labsModeEnabled: Boolean,
     installPackagesPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     mediaPermissionsGranted: Boolean,
@@ -2363,6 +2716,7 @@ private fun SettingsHubScreen(
     allFilesPermissionGranted: Boolean,
     downloadPermissionGranted: Boolean,
     onTogglePlayerMonochromatic: (Boolean) -> Unit,
+    onToggleLabsMode: (Boolean) -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onRequestMediaPermission: () -> Unit,
     onRequestStoragePermission: () -> Unit,
@@ -2392,6 +2746,12 @@ private fun SettingsHubScreen(
                 value = "Quando ativo, o fundo do player fica preto",
                 checked = playerMonochromatic,
                 onCheckedChange = onTogglePlayerMonochromatic
+            )
+            SettingsToggleItem(
+                label = "Labs",
+                value = "Ativa recursos experimentais em teste",
+                checked = labsModeEnabled,
+                onCheckedChange = onToggleLabsMode
             )
             PermissionListItem(
                 label = "Permissão de notificações",

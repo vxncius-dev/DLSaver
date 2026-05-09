@@ -45,6 +45,12 @@ object DownloaderBridge {
         }.distinctBy { it.height }.sortedByDescending { it.height }
     }
 
+    fun previewStreamUrl(url: String): String {
+        val module = Python.getInstance().getModule("downloader")
+        val resultJson = module.callAttr("preview_stream_url", url).toString()
+        return JSONObject(resultJson).optString("url")
+    }
+
     fun download(
         url: String,
         tempDir: String,

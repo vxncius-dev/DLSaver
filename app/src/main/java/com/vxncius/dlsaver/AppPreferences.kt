@@ -6,6 +6,7 @@ object AppPreferences {
     private const val PREFS_NAME = "dlsaver_prefs"
     private const val KEY_SIMULTANEOUS_DOWNLOADS = "simultaneous_downloads"
     private const val KEY_PLAYER_MONOCHROMATIC = "player_monochromatic"
+    private const val KEY_LABS_MODE = "labs_mode"
     private const val KEY_MEDIA_PERMISSION_REQUESTED = "media_permission_requested"
 
     fun getSimultaneousDownloadsLimit(context: Context): Int {
@@ -30,6 +31,18 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_PLAYER_MONOCHROMATIC, enabled)
+            .apply()
+    }
+
+    fun isLabsModeEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_LABS_MODE, false)
+    }
+
+    fun setLabsModeEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_LABS_MODE, enabled)
             .apply()
     }
 
