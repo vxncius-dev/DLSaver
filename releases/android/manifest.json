@@ -2,12 +2,12 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
-                         "versionCode":  9,
-                         "versionName":  "1.15.5",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.5/dlsaver_v1.15.5_arm64-v8a.apk",
-                         "notes":  "Android arm64-v8a com correcoes em download de video sem forcar MP4, retry sem aria2c para yt-dlp externo, preview maior com controles/autoplay mais estaveis, PiP na proporcao real do video, menu de letras por toque longo e cancelamento de processamento mais robusto",
-                         "publishedAt":  "2026-05-25T18:43:40Z",
-                         "sha256":  "bd6d49dbc828af1077cc19f29a5034faaf16e90d0f35248e9a8b525c4f51ccc7",
+                         "versionCode":  10,
+                         "versionName":  "1.15.6",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.6/dlsaver_v1.15.6_arm64-v8a.apk",
+                         "notes":  "Android arm64-v8a com download de video mais conservador priorizando MP4/M4A compativel, sem aria2c no caminho de video, erro visivel quando o servico nao inicia e cancelamento protegido",
+                         "publishedAt":  "2026-05-25T18:56:53Z",
+                         "sha256":  "ce24273d44f743ce6c713882c5fa15d27d87324372757858f68a049b30d7406a",
                          "sizeBytes":  85978109,
                          "abi":  "arm64-v8a"
                      }
