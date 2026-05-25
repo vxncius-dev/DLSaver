@@ -385,10 +385,10 @@ def _video_format(video_min_height):
     target_height = int(video_min_height or 0)
     if target_height > 0:
         return (
-            f"bestvideo[height<={target_height}]+bestaudio/best[height<={target_height}]/"
-            "bestvideo+bestaudio/best"
+            f"bestvideo*[height<={target_height}]+bestaudio/best[height<={target_height}]/"
+            f"best[height<={target_height}]/bestvideo*+bestaudio/best"
         )
-    return "bestvideo[height>=720]+bestaudio/best[height>=720]/bestvideo+bestaudio/best"
+    return "bestvideo*+bestaudio/best"
 
 
 def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height=0):
@@ -443,7 +443,7 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
             "bestaudio[ext=m4a]/bestaudio/best",
         ])
     else:
-        command.extend(["-f", _video_format(video_min_height), "--merge-output-format", "mp4"])
+        command.extend(["-f", _video_format(video_min_height)])
 
     command.append(url)
     return command
@@ -500,7 +500,6 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
         options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
     else:
         options["format"] = _video_format(video_min_height)
-        options["merge_output_format"] = "mp4"
 
     return options
 
@@ -839,20 +838,35 @@ def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", 
                 ydl.extract_info(url, download=True)
             exit_code = 0
 
-        if (exit_code != 0 or not _collect_exportable_files(temp_dir)) and aria2c_path and not use_external_yt_dlp:
+        if (exit_code != 0 or not _collect_exportable_files(temp_dir)) and aria2c_path:
             _append_log(lines, "=== Retry Without aria2c ===")
             _notify(callback, 0.0, "Tentando novamente sem acelerador...", "Retry sem aria2c")
-            options = _yt_dlp_api_options(temp_dir, ffmpeg_path, "", audio_only, callback, video_min_height)
-            _append_log(lines, json.dumps({
-                "outtmpl": options["outtmpl"],
-                "paths": options["paths"],
-                "audio_only": audio_only,
-                "format": options.get("format", ""),
-                "external_downloader": options.get("external_downloader", ""),
-            }, ensure_ascii=False))
-            with yt_dlp.YoutubeDL(options) as ydl:
-                ydl.extract_info(url, download=True)
-            exit_code = 0
+            if use_external_yt_dlp:
+                retry_command = _build_command(url, temp_dir, yt_dlp_path, ffmpeg_path, "", audio_only, video_min_height)
+                _append_log(lines, "command=" + " ".join(retry_command))
+                retry = subprocess.run(
+                    retry_command,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.STDOUT,
+                    text=True,
+                    env=env,
+                )
+                if retry.stdout:
+                    for line in retry.stdout.splitlines():
+                        _append_log(lines, line)
+                exit_code = retry.returncode
+            else:
+                options = _yt_dlp_api_options(temp_dir, ffmpeg_path, "", audio_only, callback, video_min_height)
+                _append_log(lines, json.dumps({
+                    "outtmpl": options["outtmpl"],
+                    "paths": options["paths"],
+                    "audio_only": audio_only,
+                    "format": options.get("format", ""),
+                    "external_downloader": options.get("external_downloader", ""),
+                }, ensure_ascii=False))
+                with yt_dlp.YoutubeDL(options) as ydl:
+                    ydl.extract_info(url, download=True)
+                exit_code = 0
     except Exception as exc:
         _append_log(lines, "=== Exception ===")
         _append_log(lines, repr(exc))

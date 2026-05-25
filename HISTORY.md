@@ -1,5 +1,14 @@
 # DLSaver History
 
+## 2026-05-25 hotfix
+
+- Release Android 1.15.5 corrigindo falhas em downloads de vídeo ao não forçar merge para MP4 quando o melhor formato usa outro contêiner compatível.
+- Retry de download sem aria2c também cobre o caminho do binário externo do yt-dlp.
+- Preview de vídeo recebeu mais espaço, controles mais confiáveis ao trocar de vídeo e autoplay contínuo para os próximos resultados.
+- PiP passa a usar a proporção real do vídeo em reprodução para evitar corte errado no card.
+- Letras agora têm menu por toque longo para remover a letra automática ou pesquisar manualmente.
+- Cancelamento de downloads/processamento ficou mais defensivo para evitar fechamento do app e duplicidade visual durante exportação.
+
 ## 2026-05-25
 
 - Release Android 1.15.4 com ajustes no modo Labs de preview de vídeo nos resultados.

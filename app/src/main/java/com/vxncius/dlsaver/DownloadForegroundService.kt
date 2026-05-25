@@ -29,7 +29,11 @@ class DownloadForegroundService : Service() {
             val cancelJobId = intent.getStringExtra(EXTRA_JOB_ID).orEmpty()
             cancelledJobs += cancelJobId
             runningJobs.remove(cancelJobId)?.cancel()
-            stopSelf(startId)
+            if (cancelJobId.isNotBlank()) {
+                DownloadStateStore.cancelJob(cancelJobId)
+                DownloadJobPersistence.removeJob(this, cancelJobId)
+                NotificationHelper.cancel(this, NotificationHelper.activeNotificationIdFor(cancelJobId))
+            }
             return START_NOT_STICKY
         }
 
@@ -181,42 +185,76 @@ class DownloadForegroundService : Service() {
                     DownloadStateStore.uiState.value.downloadJobs.firstOrNull { it.id == jobId }?.let { exportingJob ->
                         DownloadJobPersistence.upsertJob(this@DownloadForegroundService, exportingJob)
                     }
-                    val exported = MediaStoreExporter.exportDirectoryToDownloads(
-                        context = this@DownloadForegroundService,
-                        sourceDir = File(result.tempDir)
-                    )
-                    ensureActive()
-                    if (jobId in cancelledJobs) {
-                        DownloadStateStore.cancelJob(jobId)
+                    runCatching {
+                        ensureActive()
+                        if (jobId in cancelledJobs) throw kotlinx.coroutines.CancellationException()
+                        val exported = MediaStoreExporter.exportDirectoryToDownloads(
+                            context = this@DownloadForegroundService,
+                            sourceDir = File(result.tempDir)
+                        )
+                        ensureActive()
+                        if (jobId in cancelledJobs) throw kotlinx.coroutines.CancellationException()
+                        val downloads = LocalThumbnailStore.sync(
+                            this@DownloadForegroundService,
+                            DownloadsLibrary.queryAppDownloads(this@DownloadForegroundService),
+                            maxItemsToProcess = Int.MAX_VALUE
+                        )
+                        DownloadStateStore.setExistingDownloads(downloads)
+                        DownloadStateStore.downloadFinished(
+                            jobId = jobId,
+                            savedFiles = exported,
+                            log = result.log
+                        )
                         DownloadJobPersistence.removeJob(this@DownloadForegroundService, jobId)
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         NotificationHelper.cancel(this@DownloadForegroundService, activeNotificationId)
-                        return@onSuccess
-                    }
-                    val downloads = LocalThumbnailStore.sync(
-                        this@DownloadForegroundService,
-                        DownloadsLibrary.queryAppDownloads(this@DownloadForegroundService),
-                        maxItemsToProcess = Int.MAX_VALUE
-                    )
-                    DownloadStateStore.setExistingDownloads(downloads)
-                    DownloadStateStore.downloadFinished(
-                        jobId = jobId,
-                        savedFiles = exported,
-                        log = result.log
-                    )
-                    DownloadJobPersistence.removeJob(this@DownloadForegroundService, jobId)
-                    stopForeground(STOP_FOREGROUND_REMOVE)
-                    NotificationHelper.cancel(this@DownloadForegroundService, activeNotificationId)
-                    NotificationHelper.show(
-                        this@DownloadForegroundService,
-                        historyNotificationId,
-                        NotificationHelper.buildCompletedNotification(
-                            context = this@DownloadForegroundService,
-                            title = title,
-                            contentIntent = contentIntent
+                        NotificationHelper.show(
+                            this@DownloadForegroundService,
+                            historyNotificationId,
+                            NotificationHelper.buildCompletedNotification(
+                                context = this@DownloadForegroundService,
+                                title = title,
+                                contentIntent = contentIntent
+                            )
                         )
-                    )
-                    NotificationHelper.showSummary(this@DownloadForegroundService)
+                        NotificationHelper.showSummary(this@DownloadForegroundService)
+                    }.onFailure { exportError ->
+                        val cancelled = exportError is kotlinx.coroutines.CancellationException || jobId in cancelledJobs
+                        if (cancelled) {
+                            DownloadStateStore.cancelJob(jobId)
+                            DownloadJobPersistence.removeJob(this@DownloadForegroundService, jobId)
+                        } else {
+                            val message = exportError.stackTraceToString()
+                            DownloadStateStore.downloadFailed(jobId, message)
+                            DownloadJobPersistence.upsertFailedJob(
+                                this@DownloadForegroundService,
+                                DownloadStateStore.uiState.value.downloadJobs.firstOrNull { it.id == jobId }
+                                    ?: DownloadJobItem(
+                                        id = jobId,
+                                        title = title,
+                                        sourceUrl = url,
+                                        thumbnailUrl = thumbnailUrl,
+                                        kind = kind,
+                                        videoMinHeight = videoMinHeight,
+                                        status = DownloadJobStatus.FAILED,
+                                        statusText = "Falha no processamento",
+                                        log = message
+                                    )
+                            )
+                            NotificationHelper.show(
+                                this@DownloadForegroundService,
+                                historyNotificationId,
+                                NotificationHelper.buildFailedNotification(
+                                    context = this@DownloadForegroundService,
+                                    title = title,
+                                    contentIntent = contentIntent
+                                )
+                            )
+                            NotificationHelper.showSummary(this@DownloadForegroundService)
+                        }
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        NotificationHelper.cancel(this@DownloadForegroundService, activeNotificationId)
+                    }
                 }
             }.onFailure { error ->
                 val cancelled = error is kotlinx.coroutines.CancellationException

@@ -348,13 +348,15 @@ fun DLSaverRoot(
         Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
     }
 
-    fun enterVideoPictureInPicture() {
+    fun enterVideoPictureInPicture(videoWidth: Int, videoHeight: Int) {
         val activity = context.findActivity() ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val safeWidth = videoWidth.takeIf { it > 0 } ?: 16
+            val safeHeight = videoHeight.takeIf { it > 0 } ?: 9
             runCatching {
                 activity.enterPictureInPictureMode(
                     PictureInPictureParams.Builder()
-                        .setAspectRatio(Rational(16, 9))
+                        .setAspectRatio(Rational(safeWidth, safeHeight))
                         .build()
                 )
             }
@@ -789,7 +791,12 @@ fun DLSaverRoot(
                         videoPlayerFullscreen = true
                         videoPlayerFromInlinePreview = true
                     },
-                    onEnterPip = { enterVideoPictureInPicture() },
+                    onEnterPip = {
+                        enterVideoPictureInPicture(
+                            playbackUiState.videoWidth,
+                            playbackUiState.videoHeight
+                        )
+                    },
                     onTogglePreviewPlayPause = onTogglePlayPause,
                     onSeekPreviewTo = onSeekTo,
                     onOpenPlaylist = onOpenPlaylist,
@@ -944,7 +951,12 @@ fun DLSaverRoot(
                         videoPlayerFromInlinePreview = false
                     }
                 },
-                onEnterPip = { enterVideoPictureInPicture() },
+                onEnterPip = {
+                    enterVideoPictureInPicture(
+                        playbackUiState.videoWidth,
+                        playbackUiState.videoHeight
+                    )
+                },
                 onTogglePlayPause = onTogglePlayPause,
                 onSeekTo = onSeekTo
             )
@@ -1145,7 +1157,7 @@ private fun ResultListScreen(
         start = 7.dp,
         end = 7.dp,
         top = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() + 15.dp,
-        bottom = if (isPlaylistMode) 116.dp else 20.dp
+        bottom = if (isPlaylistMode) 126.dp else 30.dp
     )
     val previewIndex = previewItem?.let { current ->
         state.searchResults.indexOfFirst { it.url == current.url }
@@ -1204,7 +1216,7 @@ private fun ResultListScreen(
             state = resultsListState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = listContentPadding,
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             item("results_header") {
                 Box(modifier = Modifier.padding(horizontal = 10.dp)) {
@@ -1364,8 +1376,20 @@ private fun DownloadsScreen(
         .flatMap { job -> job.savedFiles }
         .map { path -> path.substringAfterLast('/') }
         .toSet()
+    val activeJobBaseNames = state.downloadJobs
+        .filter {
+            it.status == DownloadJobStatus.QUEUED ||
+                it.status == DownloadJobStatus.RUNNING ||
+                it.status == DownloadJobStatus.EXPORTING
+        }
+        .map { normalizedDownloadBaseName(it.title) }
+        .filter { it.isNotBlank() }
+        .toSet()
     val existingDownloads = state.existingDownloads
-        .filterNot { it.name in pendingOrFailedNames }
+        .filterNot {
+            it.name in pendingOrFailedNames ||
+                normalizedDownloadBaseName(it.name) in activeJobBaseNames
+        }
         .filter { item ->
             val query = librarySearchQuery.trim()
             query.isBlank() ||
@@ -1595,6 +1619,7 @@ private fun SearchInlineVideoPreview(
     }
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
+    var lastAutoplayUrl by rememberSaveable { mutableStateOf("") }
     val duration = playbackUiState.durationMs.coerceAtLeast(0L)
     val position = playbackUiState.positionMs.coerceIn(0L, if (duration > 0L) duration else Long.MAX_VALUE)
     val sliderValue = if (duration > 0L) position.toFloat() / duration.toFloat() else 0f
@@ -1604,7 +1629,9 @@ private fun SearchInlineVideoPreview(
         position >= (duration - 900L).coerceAtLeast(0L)
 
     LaunchedEffect(autoplayNext, showNextCard, nextItem?.url, playbackUiState.mediaUri) {
-        if (autoplayNext && showNextCard && nextItem != null) {
+        val nextUrl = nextItem?.url.orEmpty()
+        if (autoplayNext && showNextCard && nextItem != null && nextUrl != lastAutoplayUrl) {
+            lastAutoplayUrl = nextUrl
             onPlayNext(nextItem)
         }
     }
@@ -1613,8 +1640,11 @@ private fun SearchInlineVideoPreview(
         controller = MediaPlayback.connect(context)
     }
 
-    LaunchedEffect(playbackUiState.mediaUri) {
+    LaunchedEffect(item.url, loading, error, playbackUiState.mediaUri) {
         controlsVisible = true
+        if (!loading && error.isBlank()) {
+            lastAutoplayUrl = ""
+        }
     }
 
     DisposableEffect(controller, playerView) {
@@ -1634,7 +1664,7 @@ private fun SearchInlineVideoPreview(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(205.dp)
+                .height(215.dp)
                 .background(Color.Black)
                 .pointerInput(loading, error, playbackUiState.isPlaying) {
                     detectTapGestures {
@@ -1801,7 +1831,7 @@ private fun SearchResultRow(
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -1867,7 +1897,7 @@ private fun ShimmerResultPlaceholder() {
         ) {
             Box(
                 modifier = Modifier
-                    .size(58.dp)
+                            .size(64.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .background(Color(0xFF1A1A1A))
             )
@@ -1979,7 +2009,7 @@ private fun SearchResultSelectableRow(
         colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -3133,8 +3163,9 @@ private fun ThumbnailBox(
     val density = LocalDensity.current
     val model = url.ifBlank { fallbackUrl }.trim()
     val shape = RoundedCornerShape(10.dp)
-    val widthPx = with(density) { 58.dp.roundToPx() }
-    val heightPx = with(density) { 58.dp.roundToPx() }
+    val thumbnailSize = 64.dp
+    val widthPx = with(density) { thumbnailSize.roundToPx() }
+    val heightPx = with(density) { thumbnailSize.roundToPx() }
     val fallbackPainter = painterResource(id = R.drawable.music_thumbnail)
     val contentScale = when {
         kind == DownloadKind.AUDIO -> ContentScale.Crop
@@ -3144,7 +3175,7 @@ private fun ThumbnailBox(
 
     Box(
         modifier = Modifier
-            .size(58.dp)
+            .size(thumbnailSize)
             .clip(shape)
             .border(1.dp, Color(0xFF222222), shape)
             .background(MaterialTheme.colorScheme.background),
@@ -3327,7 +3358,7 @@ private fun DownloadKindBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.SmartDisplay, contentDescription = null)
-                    Text("Baixar como vídeo (melhor qualidade)")
+                    Text("Baixar como vídeo")
                 }
             }
             if (showExperimentalQuality) {
@@ -3577,6 +3608,7 @@ private fun PlayerBottomSheet(
     val showLyricsBadge = lyricsAvailable || lyricsLookupFinished
     var lyricsVisible by rememberSaveable(state.mediaUri?.toString()) { mutableStateOf(false) }
     var manualLyricsSheetOpen by rememberSaveable(state.mediaUri?.toString()) { mutableStateOf(false) }
+    var lyricsOptionsSheetOpen by rememberSaveable(state.mediaUri?.toString()) { mutableStateOf(false) }
     val duration = state.durationMs.coerceAtLeast(0L)
     val position = state.positionMs.coerceIn(0L, if (duration > 0L) duration else Long.MAX_VALUE)
     val sliderValue = if (duration > 0L) position.toFloat() / duration.toFloat() else 0f
@@ -3750,7 +3782,7 @@ private fun PlayerBottomSheet(
                                             },
                                             onLongPress = {
                                                 if (lyricsAvailable || lyricsLookupFinished) {
-                                                    manualLyricsSheetOpen = true
+                                                    lyricsOptionsSheetOpen = true
                                                 }
                                             }
                                         )
@@ -3941,6 +3973,22 @@ private fun PlayerBottomSheet(
                 manualLyricsPayload = it
                 lyricsVisible = true
                 manualLyricsSheetOpen = false
+            }
+        )
+    }
+
+    if (lyricsOptionsSheetOpen) {
+        LyricsOptionsBottomSheet(
+            hasLyrics = lyricsAvailable,
+            onDismiss = { lyricsOptionsSheetOpen = false },
+            onRemove = {
+                manualLyricsPayload = LyricsPayload()
+                lyricsVisible = false
+                lyricsOptionsSheetOpen = false
+            },
+            onSearch = {
+                lyricsOptionsSheetOpen = false
+                manualLyricsSheetOpen = true
             }
         )
     }
@@ -4171,6 +4219,57 @@ private fun LyricsAvailabilityBadge(
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
+private fun LyricsOptionsBottomSheet(
+    hasLyrics: Boolean,
+    onDismiss: () -> Unit,
+    onRemove: () -> Unit,
+    onSearch: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(horizontal = 20.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("Letra", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            TextButton(
+                onClick = onSearch,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Search, contentDescription = null)
+                    Text("Pesquisar")
+                }
+            }
+            TextButton(
+                onClick = onRemove,
+                enabled = hasLyrics,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(0.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null)
+                    Text("Remover")
+                }
+            }
+            Spacer(modifier = Modifier.size(8.dp))
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
 private fun LyricsSearchBottomSheet(
     rawTitle: String,
     rawArtist: String,
@@ -4326,7 +4425,7 @@ private fun VideoPlayerBottomSheet(
     var previousOrientation by rememberSaveable { mutableStateOf(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) }
     val standardTopInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val nonFullscreenVideoHeight = 220.dp
+    val nonFullscreenVideoHeight = 230.dp
     val controlsAlpha by animateFloatAsState(
         targetValue = if (controlsVisible || !state.isPlaying) 1f else 0f,
         animationSpec = tween(durationMillis = 220),
