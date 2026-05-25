@@ -1,5 +1,10 @@
 # DLSaver History
 
+## 2026-05-25 hotfix 3
+
+- Release Android 1.15.7 adicionando rotação de User-Agent/headers no yt-dlp e alternância de cliente YouTube android/web.
+- Headers e args de cliente passam a valer para inspect, preview, listagem de playlist, qualidades e download.
+
 ## 2026-05-25 hotfix 2
 
 - Release Android 1.15.6 tornando downloads de video mais conservadores: prioriza MP4/M4A compatível e evita aria2c no caminho de vídeo.

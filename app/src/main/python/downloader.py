@@ -1,6 +1,7 @@
 import json
 import os
 import platform
+import random
 import re
 import sys
 import traceback
@@ -28,6 +29,24 @@ EXPORTABLE_EXTENSIONS = (
     ".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".flac", ".webm",
     ".mp4", ".mkv", ".mov", ".avi",
 )
+
+USER_AGENTS = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/125.0.0.0 Mobile Safari/537.36",
+)
+
+YOUTUBE_EXTRACTOR_ARGS = {
+    "youtube": {
+        # Alterna entre clientes porque o YouTube muda disponibilidade de formatos por client.
+        "player_client": ["android", "web"],
+    }
+}
 
 _REMOVABLE_TERMS = [
     "clipe oficial",
@@ -118,6 +137,33 @@ def _aria2c_args():
     ]
 
 
+def _http_headers():
+    return {
+        "User-Agent": random.choice(USER_AGENTS),
+        "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Accept": "*/*",
+    }
+
+
+def _base_ydl_options(**overrides):
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "cachedir": False,
+        "http_headers": _http_headers(),
+        "extractor_args": YOUTUBE_EXTRACTOR_ARGS,
+    }
+    opts.update(overrides)
+    return opts
+
+
+def _append_cli_headers(command):
+    headers = _http_headers()
+    command.extend(["--user-agent", headers["User-Agent"]])
+    command.extend(["--add-header", f"Accept-Language:{headers['Accept-Language']}"])
+    command.extend(["--extractor-args", "youtube:player_client=android,web"])
+
+
 def _extract_thumbnail(item):
     direct = (
         getattr(item, "thumbnail_src", "")
@@ -188,16 +234,13 @@ def list_playlist(url, page=0, page_size=20):
     start = page * page_size
     end = start + page_size
 
-    opts = {
-        "quiet": True,
-        "no_warnings": True,
-        "extract_flat": True,
-        "skip_download": True,
-        "cachedir": False,
-        "playliststart": start + 1,  # yt-dlp usa indices 1-based
-        "playlistend": end,
-        "noplaylist": False,
-    }
+    opts = _base_ydl_options(
+        extract_flat=True,
+        skip_download=True,
+        playliststart=start + 1,  # yt-dlp usa indices 1-based
+        playlistend=end,
+        noplaylist=False,
+    )
 
     info = {}
     try:
@@ -284,19 +327,16 @@ def preview_stream_url(url):
 
     try:
         with yt_dlp.YoutubeDL(
-            {
-                "quiet": True,
-                "no_warnings": True,
-                "skip_download": True,
-                "cachedir": False,
-                "noplaylist": True,
+            _base_ydl_options(
+                skip_download=True,
+                noplaylist=True,
                 # O preview precisa de uma URL unica que o ExoPlayer abra com audio.
                 # Evita formatos DASH separados (video-only + audio-only).
-                "format": (
+                format=(
                     "best[protocol*=m3u8][vcodec!=none][acodec!=none]/"
                     "best[vcodec!=none][acodec!=none]/best"
                 ),
-            }
+            )
         ) as ydl:
             info = ydl.extract_info(url, download=False) or {}
     except Exception:
@@ -436,6 +476,7 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
                 "aria2c:" + " ".join(_aria2c_args()),
             ]
         )
+    _append_cli_headers(command)
 
     if audio_only:
         command.extend([
@@ -472,22 +513,21 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
         elif status:
             _notify(callback, progress_state["last"], status, repr(data))
 
-    options = {
-        "outtmpl": output_template,
-        "paths": {"home": temp_dir},
-        "noplaylist": True,
-        "cachedir": False,
-        "concurrent_fragment_downloads": 3,
-        "retries": 10,
-        "fragment_retries": 10,
-        "continuedl": True,
-        "overwrites": False,
-        "progress_hooks": [progress_hook],
-        "logger": _YtDlpLogger(callback),
-        "nopart": False,
-        "restrictfilenames": False,
-        "noprogress": False,
-    }
+    options = _base_ydl_options(
+        outtmpl=output_template,
+        paths={"home": temp_dir},
+        noplaylist=True,
+        concurrent_fragment_downloads=3,
+        retries=10,
+        fragment_retries=10,
+        continuedl=True,
+        overwrites=False,
+        progress_hooks=[progress_hook],
+        logger=_YtDlpLogger(callback),
+        nopart=False,
+        restrictfilenames=False,
+        noprogress=False,
+    )
 
     if audio_only and aria2c_path and os.path.exists(aria2c_path):
         options["external_downloader"] = aria2c_path
@@ -506,7 +546,7 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
 
 def _extract_info(url):
     try:
-        with yt_dlp.YoutubeDL({"quiet": True, "no_warnings": True}) as ydl:
+        with yt_dlp.YoutubeDL(_base_ydl_options()) as ydl:
             return ydl.extract_info(url, download=False) or {}
     except Exception:
         return {}
