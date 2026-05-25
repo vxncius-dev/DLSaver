@@ -2,13 +2,13 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
-                         "versionCode":  7,
-                         "versionName":  "1.15.3",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.3/dlsaver_v1.15.3_arm64-v8a.apk",
-                         "notes":  "Android arm64-v8a com modo Labs para preview de video nos resultados, cache temporario de streams, botao de download multiplo em playlists e ajustes nos icones de selecao",
-                         "publishedAt":  "2026-05-09T11:25:22Z",
-                         "sha256":  "cd3b58fa1e285f80d3ce7dcaed4ea57f2b90f2dc2ff207b3a89a5df1343473d0",
-                         "sizeBytes":  85978057,
+                         "versionCode":  8,
+                         "versionName":  "1.15.4",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.4/dlsaver_v1.15.4_arm64-v8a.apk",
+                         "notes":  "Android arm64-v8a com melhor qualidade de video por padrao, selecao de qualidade experimental no Labs, player de resultados com PiP, controles sobrepostos, autoplay experimental na busca, cache de ate 50 resultados e thumbnail do video na notificacao de midia",
+                         "publishedAt":  "2026-05-25T18:10:03Z",
+                         "sha256":  "2c60cb50d1c2f9ba6910ce985df2cea699ef3912e14d45c7c951cc5b84a52396",
+                         "sizeBytes":  85978105,
                          "abi":  "arm64-v8a"
                      }
                  ]
