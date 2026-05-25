@@ -25,8 +25,8 @@ android {
         applicationId = "com.vxncius.dlsaver"
         minSdk = 24
         targetSdk = 35
-        versionCode = 9
-        versionName = "1.15.5"
+        versionCode = 10
+        versionName = "1.15.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

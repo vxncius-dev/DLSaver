@@ -1,5 +1,11 @@
 # DLSaver History
 
+## 2026-05-25 hotfix 2
+
+- Release Android 1.15.6 tornando downloads de video mais conservadores: prioriza MP4/M4A compatível e evita aria2c no caminho de vídeo.
+- Falhas ao iniciar o serviço de download agora viram erro visível no card em vez de deixar o item parado sem progresso.
+- Cancelamento de job ativo ficou protegido contra exceções ao acionar o serviço.
+
 ## 2026-05-25 hotfix
 
 - Release Android 1.15.5 corrigindo falhas em downloads de vídeo ao não forçar merge para MP4 quando o melhor formato usa outro contêiner compatível.

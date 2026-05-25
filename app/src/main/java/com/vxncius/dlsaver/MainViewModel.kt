@@ -321,10 +321,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val job = uiState.value.downloadJobs.firstOrNull { it.id == jobId } ?: return
         DownloadJobPersistence.removeJob(context, jobId)
         if (job.status == DownloadJobStatus.RUNNING || job.status == DownloadJobStatus.EXPORTING) {
-            startForegroundService(
-                context,
-                DownloadForegroundService.createCancelIntent(context, jobId)
-            )
+            runCatching {
+                startForegroundService(
+                    context,
+                    DownloadForegroundService.createCancelIntent(context, jobId)
+                )
+            }
         }
         DownloadStateStore.cancelJob(jobId)
         viewModelScope.launch {

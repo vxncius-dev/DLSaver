@@ -385,10 +385,10 @@ def _video_format(video_min_height):
     target_height = int(video_min_height or 0)
     if target_height > 0:
         return (
-            f"bestvideo*[height<={target_height}]+bestaudio/best[height<={target_height}]/"
-            f"best[height<={target_height}]/bestvideo*+bestaudio/best"
+            f"bestvideo[height<={target_height}][ext=mp4]+bestaudio[ext=m4a]/"
+            f"best[height<={target_height}][ext=mp4]/best[height<={target_height}]/best"
         )
-    return "bestvideo*+bestaudio/best"
+    return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
 
 
 def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height=0):
@@ -427,7 +427,7 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
     if ffmpeg_path and os.path.exists(ffmpeg_path):
         command.extend(["--ffmpeg-location", os.path.dirname(ffmpeg_path)])
 
-    if aria2c_path and os.path.exists(aria2c_path):
+    if audio_only and aria2c_path and os.path.exists(aria2c_path):
         command.extend(
             [
                 "--downloader",
@@ -489,7 +489,7 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
         "noprogress": False,
     }
 
-    if aria2c_path and os.path.exists(aria2c_path):
+    if audio_only and aria2c_path and os.path.exists(aria2c_path):
         options["external_downloader"] = aria2c_path
         options["external_downloader_args"] = _aria2c_args()
 

@@ -31,18 +31,31 @@ object DownloadScheduler {
                     context,
                     job.copy(status = DownloadJobStatus.RUNNING, statusText = "Iniciando download...")
                 )
-                startForegroundService(
-                    context,
-                    DownloadForegroundService.createIntent(
-                        context = context,
-                        jobId = job.id,
-                        url = job.sourceUrl,
-                        title = job.title,
-                        thumbnailUrl = job.thumbnailUrl,
-                        kind = job.kind,
-                        videoMinHeight = job.videoMinHeight
+                runCatching {
+                    startForegroundService(
+                        context,
+                        DownloadForegroundService.createIntent(
+                            context = context,
+                            jobId = job.id,
+                            url = job.sourceUrl,
+                            title = job.title,
+                            thumbnailUrl = job.thumbnailUrl,
+                            kind = job.kind,
+                            videoMinHeight = job.videoMinHeight
+                        )
                     )
-                )
+                }.onFailure { error ->
+                    val message = error.stackTraceToString()
+                    DownloadStateStore.downloadFailed(job.id, message)
+                    DownloadJobPersistence.upsertFailedJob(
+                        context,
+                        job.copy(
+                            status = DownloadJobStatus.FAILED,
+                            statusText = "Falha ao iniciar download",
+                            log = message
+                        )
+                    )
+                }
             }
         }
     }
