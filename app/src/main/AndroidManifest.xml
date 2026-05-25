@@ -32,9 +32,11 @@
 
         <activity
             android:name=".MainActivity"
+            android:configChanges="screenSize|smallestScreenSize|screenLayout|orientation"
             android:exported="true"
             android:launchMode="singleTask"
             android:documentLaunchMode="never"
+            android:supportsPictureInPicture="true"
             android:theme="@style/Theme.DLSaver">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

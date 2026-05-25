@@ -463,8 +463,6 @@ class MainActivity : ComponentActivity() {
 
         fun createOpenPlayerIntent(context: Context): Intent {
             return Intent(context, MainActivity::class.java).apply {
-                putExtra(EXTRA_OPEN_SCREEN, AppScreen.HOME.name)
-                putExtra(EXTRA_OPEN_PLAYER, true)
                 flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
             }
         }

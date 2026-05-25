@@ -1,5 +1,14 @@
 # DLSaver History
 
+## 2026-05-25
+
+- Release Android 1.15.4 com ajustes no modo Labs de preview de vídeo nos resultados.
+- Downloads de vídeo agora usam a melhor qualidade disponível por padrão; seleção manual de qualidade virou opção experimental no Labs.
+- Player de vídeo recebeu dimensões estáveis, controles sobrepostos no card, suporte a picture-in-picture e retorno mais seguro pela notificação.
+- Preview de vídeo pode tocar o próximo resultado automaticamente quando a opção experimental estiver ativa.
+- Busca passou a pré-carregar até 50 resultados por consulta e manter cache seguro em memória para consultas repetidas.
+- Notificação de mídia passa a usar a thumbnail do vídeo em reprodução quando o preview vem da busca.
+
 ## 2026-05-04
 
 - Inicializado repositório Git local para facilitar rastreio das próximas alterações.

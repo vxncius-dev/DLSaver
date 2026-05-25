@@ -6,12 +6,14 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
 import android.app.Activity
+import android.app.PictureInPictureParams
 import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.provider.Settings
 import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Build
+import android.util.Rational
 import android.view.View
 import android.view.Window
 import android.view.WindowManager
@@ -83,6 +85,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PictureInPictureAlt
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.RepeatOne
@@ -267,6 +270,7 @@ fun DLSaverRoot(
     var homeInputFocusNonce by remember { mutableStateOf(0) }
     var playerMonochromatic by remember { mutableStateOf(AppPreferences.isPlayerMonochromatic(context)) }
     var labsModeEnabled by remember { mutableStateOf(AppPreferences.isLabsModeEnabled(context)) }
+    var searchAutoplayEnabled by remember { mutableStateOf(AppPreferences.isSearchAutoplayEnabled(context)) }
     var inlinePreviewItem by remember { mutableStateOf<SearchResultItem?>(null) }
     var inlinePreviewLoadingUrl by remember { mutableStateOf("") }
     var inlinePreviewError by remember { mutableStateOf("") }
@@ -339,6 +343,24 @@ fun DLSaverRoot(
         }
     }
 
+    fun startBestVideoDownload(item: SearchResultItem) {
+        val result = onDownloadResult(item, DownloadKind.VIDEO, 0)
+        Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
+    }
+
+    fun enterVideoPictureInPicture() {
+        val activity = context.findActivity() ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            runCatching {
+                activity.enterPictureInPictureMode(
+                    PictureInPictureParams.Builder()
+                        .setAspectRatio(Rational(16, 9))
+                        .build()
+                )
+            }
+        }
+    }
+
     fun startInlinePreview(item: SearchResultItem) {
         if (!labsModeEnabled || item.resultType == "playlist") return
         inlinePreviewItem = item
@@ -346,7 +368,12 @@ fun DLSaverRoot(
         val cached = inlinePreviewCache[item.url]
         if (!cached.isNullOrBlank()) {
             scope.launch {
-                MediaPlayback.playExternalVideo(context.applicationContext, Uri.parse(cached), item.title)
+                MediaPlayback.playExternalVideo(
+                    context = context.applicationContext,
+                    uri = Uri.parse(cached),
+                    title = item.title,
+                    artworkUri = itemThumbnailUrl(item).takeIf { it.isNotBlank() }?.let(Uri::parse)
+                )
             }
             return
         }
@@ -364,7 +391,12 @@ fun DLSaverRoot(
                     return@onSuccess
                 }
                 inlinePreviewCache = inlinePreviewCache + (item.url to url)
-                MediaPlayback.playExternalVideo(context.applicationContext, Uri.parse(url), item.title)
+                MediaPlayback.playExternalVideo(
+                    context = context.applicationContext,
+                    uri = Uri.parse(url),
+                    title = item.title,
+                    artworkUri = itemThumbnailUrl(item).takeIf { it.isNotBlank() }?.let(Uri::parse)
+                )
             }.onFailure {
                 inlinePreviewError = "Falha ao buscar preview"
             }
@@ -389,6 +421,10 @@ fun DLSaverRoot(
             inlinePreviewLoadingUrl = ""
             inlinePreviewError = ""
             onStopPlayback()
+        }
+        if (!labsModeEnabled && searchAutoplayEnabled) {
+            searchAutoplayEnabled = false
+            AppPreferences.setSearchAutoplayEnabled(context, false)
         }
     }
 
@@ -476,12 +512,17 @@ fun DLSaverRoot(
                 if (shouldConfirmDuplicateDownload(state, item, kind)) {
                     duplicateDownloadRequest = item to kind
                 } else if (kind == DownloadKind.VIDEO) {
-                    startVideoDownloadWithQuality(item)
+                    startBestVideoDownload(item)
                 } else {
                     val result = onDownloadResult(item, kind, 0)
                     Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
                 }
                 dialogItem = null
+            },
+            showExperimentalQuality = labsModeEnabled,
+            onSelectVideoQuality = {
+                dialogItem = null
+                startVideoDownloadWithQuality(item)
             }
         )
     }
@@ -510,7 +551,7 @@ fun DLSaverRoot(
                 if (shouldConfirmDuplicateDownload(state, item, alternateKind)) {
                     Toast.makeText(context, "Esse item já existe nos dois formatos", Toast.LENGTH_SHORT).show()
                 } else if (alternateKind == DownloadKind.VIDEO) {
-                    startVideoDownloadWithQuality(item)
+                    startBestVideoDownload(item)
                 } else {
                     val result = onDownloadResult(item, alternateKind, 0)
                     Toast.makeText(context, result.toastMessage(), Toast.LENGTH_SHORT).show()
@@ -735,6 +776,7 @@ fun DLSaverRoot(
                     previewLoading = inlinePreviewLoadingUrl.isNotBlank(),
                     previewError = inlinePreviewError,
                     playbackUiState = playbackUiState,
+                    searchAutoplayEnabled = searchAutoplayEnabled,
                     onPreviewClick = { startInlinePreview(it) },
                     onClosePreview = {
                         inlinePreviewItem = null
@@ -747,6 +789,7 @@ fun DLSaverRoot(
                         videoPlayerFullscreen = true
                         videoPlayerFromInlinePreview = true
                     },
+                    onEnterPip = { enterVideoPictureInPicture() },
                     onTogglePreviewPlayPause = onTogglePlayPause,
                     onSeekPreviewTo = onSeekTo,
                     onOpenPlaylist = onOpenPlaylist,
@@ -819,6 +862,11 @@ fun DLSaverRoot(
                     onToggleLabsMode = { enabled ->
                         labsModeEnabled = enabled
                         AppPreferences.setLabsModeEnabled(context, enabled)
+                    },
+                    searchAutoplayEnabled = searchAutoplayEnabled,
+                    onToggleSearchAutoplay = { enabled ->
+                        searchAutoplayEnabled = enabled && labsModeEnabled
+                        AppPreferences.setSearchAutoplayEnabled(context, searchAutoplayEnabled)
                     },
                     onOpenTerms = {
                         settingsDocumentAssetPath = "file:///android_asset/termos_uso.html"
@@ -896,6 +944,7 @@ fun DLSaverRoot(
                         videoPlayerFromInlinePreview = false
                     }
                 },
+                onEnterPip = { enterVideoPictureInPicture() },
                 onTogglePlayPause = onTogglePlayPause,
                 onSeekTo = onSeekTo
             )
@@ -1075,9 +1124,11 @@ private fun ResultListScreen(
     previewLoading: Boolean,
     previewError: String,
     playbackUiState: PlaybackUiState,
+    searchAutoplayEnabled: Boolean,
     onPreviewClick: (SearchResultItem) -> Unit,
     onClosePreview: () -> Unit,
     onFullscreenPreview: () -> Unit,
+    onEnterPip: () -> Unit,
     onTogglePreviewPlayPause: () -> Unit,
     onSeekPreviewTo: (Long) -> Unit,
     onOpenPlaylist: (String) -> Unit,
@@ -1101,6 +1152,25 @@ private fun ResultListScreen(
     } ?: -1
     val nextPreviewItem = state.searchResults.getOrNull(previewIndex + 1)
         ?.takeIf { previewIndex >= 0 && it.resultType != "playlist" }
+    val resultsListState = rememberLazyListState()
+
+    LaunchedEffect(resultsListState, state.searchResults.size, state.canLoadMore, state.isSearching) {
+        snapshotFlow {
+            resultsListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+        }
+            .distinctUntilChanged()
+            .collect { lastVisibleIndex ->
+                val totalItems = resultsListState.layoutInfo.totalItemsCount
+                if (
+                    state.canLoadMore &&
+                    !state.isSearching &&
+                    totalItems > 0 &&
+                    lastVisibleIndex >= totalItems - 3
+                ) {
+                    onLoadMore()
+                }
+            }
+    }
 
     if (state.isSearching && state.searchResults.isEmpty()) {
         LazyColumn(
@@ -1131,6 +1201,7 @@ private fun ResultListScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
+            state = resultsListState,
             modifier = Modifier.fillMaxSize(),
             contentPadding = listContentPadding,
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1172,8 +1243,10 @@ private fun ResultListScreen(
                         loading = previewLoading,
                         error = previewError,
                         playbackUiState = playbackUiState,
+                        autoplayNext = searchAutoplayEnabled,
                         onClose = onClosePreview,
                         onFullscreen = onFullscreenPreview,
+                        onEnterPip = onEnterPip,
                         onTogglePlayPause = onTogglePreviewPlayPause,
                         onSeekTo = onSeekPreviewTo,
                         onPlayNext = onPreviewClick,
@@ -1227,6 +1300,17 @@ private fun ResultListScreen(
             if (state.isSearching && state.searchResults.isNotEmpty()) {
                 item("loading_more_shimmer") {
                     ShimmerResultPlaceholder()
+                }
+            } else if (state.canLoadMore) {
+                item("load_more") {
+                    OutlinedButton(
+                        onClick = onLoadMore,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 6.dp)
+                    ) {
+                        Text("Carregar mais")
+                    }
                 }
             }
         }
@@ -1490,8 +1574,10 @@ private fun SearchInlineVideoPreview(
     loading: Boolean,
     error: String,
     playbackUiState: PlaybackUiState,
+    autoplayNext: Boolean,
     onClose: () -> Unit,
     onFullscreen: () -> Unit,
+    onEnterPip: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit,
     onPlayNext: (SearchResultItem) -> Unit,
@@ -1508,6 +1594,7 @@ private fun SearchInlineVideoPreview(
         }
     }
     var controller by remember { mutableStateOf<MediaController?>(null) }
+    var controlsVisible by rememberSaveable { mutableStateOf(true) }
     val duration = playbackUiState.durationMs.coerceAtLeast(0L)
     val position = playbackUiState.positionMs.coerceIn(0L, if (duration > 0L) duration else Long.MAX_VALUE)
     val sliderValue = if (duration > 0L) position.toFloat() / duration.toFloat() else 0f
@@ -1516,8 +1603,18 @@ private fun SearchInlineVideoPreview(
         !playbackUiState.isPlaying &&
         position >= (duration - 900L).coerceAtLeast(0L)
 
+    LaunchedEffect(autoplayNext, showNextCard, nextItem?.url, playbackUiState.mediaUri) {
+        if (autoplayNext && showNextCard && nextItem != null) {
+            onPlayNext(nextItem)
+        }
+    }
+
     LaunchedEffect(Unit) {
         controller = MediaPlayback.connect(context)
+    }
+
+    LaunchedEffect(playbackUiState.mediaUri) {
+        controlsVisible = true
     }
 
     DisposableEffect(controller, playerView) {
@@ -1534,86 +1631,97 @@ private fun SearchInlineVideoPreview(
         colors = CardDefaults.cardColors(containerColor = Color(0xFF101010)),
         shape = RoundedCornerShape(8.dp)
     ) {
-        Column {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center
-            ) {
-                AndroidView(
-                    factory = { playerView },
-                    update = { it.player = controller },
-                    modifier = Modifier.fillMaxSize()
-                )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(205.dp)
+                .background(Color.Black)
+                .pointerInput(loading, error, playbackUiState.isPlaying) {
+                    detectTapGestures {
+                        if (!loading && error.isBlank()) {
+                            controlsVisible = !controlsVisible
+                        }
+                    }
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            AndroidView(
+                factory = { playerView },
+                update = { it.player = controller },
+                modifier = Modifier.fillMaxSize()
+            )
 
-                if (loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(34.dp), strokeWidth = 3.dp)
-                } else if (error.isNotBlank()) {
-                    Text(
-                        text = error,
-                        color = Color.White,
-                        style = MaterialTheme.typography.bodyMedium,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(16.dp)
+            if (loading) {
+                CircularProgressIndicator(modifier = Modifier.size(34.dp), strokeWidth = 3.dp)
+            } else if (error.isNotBlank()) {
+                Text(
+                    text = error,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(16.dp)
+                )
+            } else if (controlsVisible || !playbackUiState.isPlaying) {
+                IconButton(
+                    onClick = onTogglePlayPause,
+                    modifier = Modifier
+                        .size(68.dp)
+                        .background(Color.Black.copy(alpha = 0.36f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = if (playbackUiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = if (playbackUiState.isPlaying) "Pausar" else "Reproduzir",
+                        tint = Color.White,
+                        modifier = Modifier.size(44.dp)
                     )
-                } else {
-                    IconButton(
-                        onClick = onTogglePlayPause,
+                }
+            }
+
+            if (controlsVisible) {
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(start = 10.dp, top = 6.dp, end = 6.dp)
+                        .fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = item.title.ifBlank { "Video" },
+                        style = MaterialTheme.typography.titleSmall,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
-                            .size(68.dp)
-                            .background(Color.Black.copy(alpha = 0.36f), CircleShape)
-                    ) {
-                        Icon(
-                            imageVector = if (playbackUiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (playbackUiState.isPlaying) "Pausar" else "Reproduzir",
-                            tint = Color.White,
-                            modifier = Modifier.size(44.dp)
-                        )
+                            .weight(1f)
+                            .background(Color.Black.copy(alpha = 0.42f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 5.dp)
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                        IconButton(onClick = onFullscreen) {
+                            Icon(Icons.Default.Fullscreen, contentDescription = "Abrir em tela cheia", tint = Color.White)
+                        }
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            IconButton(onClick = onEnterPip) {
+                                Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture-in-picture", tint = Color.White)
+                            }
+                        }
+                        IconButton(onClick = onClose) {
+                            Icon(Icons.Default.Close, contentDescription = "Fechar preview", tint = Color.White)
+                        }
                     }
                 }
 
                 Row(
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 10.dp, vertical = 8.dp)
+                        .fillMaxWidth()
+                        .background(Color.Black.copy(alpha = 0.42f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 5.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = onFullscreen) {
-                        Icon(Icons.Default.Fullscreen, contentDescription = "Abrir em tela cheia", tint = Color.White)
-                    }
-                    IconButton(onClick = onClose) {
-                        Icon(Icons.Default.Close, contentDescription = "Fechar preview", tint = Color.White)
-                    }
-                }
-
-                if (showNextCard) {
-                    NextPreviewCard(
-                        item = nextItem,
-                        onClick = { onPlayNext(nextItem) },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(10.dp)
-                            .fillMaxWidth(0.74f)
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = item.title.ifBlank { "Video" },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = Color.White,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(formatTime(position), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     PlayerSeekBar(
                         modifier = Modifier.weight(1f),
                         fraction = sliderValue,
@@ -1621,9 +1729,20 @@ private fun SearchInlineVideoPreview(
                             if (duration > 0L) onSeekTo((duration * value).toLong())
                         }
                     )
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(formatTime(duration), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+
+            if (showNextCard && !autoplayNext) {
+                NextPreviewCard(
+                    item = nextItem,
+                    onClick = { onPlayNext(nextItem) },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(10.dp)
+                        .fillMaxWidth(0.74f)
+                )
             }
         }
     }
@@ -2081,9 +2200,7 @@ private fun ExistingDownloadCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.16f) else Color.Transparent
-        )
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Row(
             modifier = Modifier
@@ -2117,10 +2234,10 @@ private fun ExistingDownloadCard(
             }
             if (selectionMode) {
                 Icon(
-                    imageVector = Icons.Default.Check,
+                    imageVector = if (selected) Icons.Default.Check else Icons.Default.CheckBoxOutlineBlank,
                     contentDescription = if (selected) "Selecionado" else "Nao selecionado",
                     tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             } else {
                 IconButton(
@@ -2709,6 +2826,7 @@ private fun SettingsHubScreen(
     state: DownloadUiState,
     playerMonochromatic: Boolean,
     labsModeEnabled: Boolean,
+    searchAutoplayEnabled: Boolean,
     installPackagesPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
     mediaPermissionsGranted: Boolean,
@@ -2717,6 +2835,7 @@ private fun SettingsHubScreen(
     downloadPermissionGranted: Boolean,
     onTogglePlayerMonochromatic: (Boolean) -> Unit,
     onToggleLabsMode: (Boolean) -> Unit,
+    onToggleSearchAutoplay: (Boolean) -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onRequestMediaPermission: () -> Unit,
     onRequestStoragePermission: () -> Unit,
@@ -2753,6 +2872,14 @@ private fun SettingsHubScreen(
                 checked = labsModeEnabled,
                 onCheckedChange = onToggleLabsMode
             )
+            if (labsModeEnabled) {
+                SettingsToggleItem(
+                    label = "Reprodução automática na busca",
+                    value = "Toca o próximo preview ao terminar o atual",
+                    checked = searchAutoplayEnabled,
+                    onCheckedChange = onToggleSearchAutoplay
+                )
+            }
             PermissionListItem(
                 label = "Permissão de notificações",
                 granted = notificationPermissionGranted,
@@ -3134,7 +3261,9 @@ private fun AppTopBar(title: String, onBack: () -> Unit) {
 private fun DownloadKindBottomSheet(
     item: SearchResultItem,
     onDismiss: () -> Unit,
-    onSelect: (DownloadKind) -> Unit
+    onSelect: (DownloadKind) -> Unit,
+    showExperimentalQuality: Boolean,
+    onSelectVideoQuality: () -> Unit
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -3198,7 +3327,23 @@ private fun DownloadKindBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(Icons.Default.SmartDisplay, contentDescription = null)
-                    Text("Baixar como vídeo")
+                    Text("Baixar como vídeo (melhor qualidade)")
+                }
+            }
+            if (showExperimentalQuality) {
+                TextButton(
+                    onClick = onSelectVideoQuality,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Info, contentDescription = null)
+                        Text("Escolher qualidade (experimental)")
+                    }
                 }
             }
             TextButton(
@@ -4150,6 +4295,7 @@ private fun VideoPlayerBottomSheet(
     onOpenItemMenu: (ExistingDownloadItem) -> Unit,
     isFullscreen: Boolean,
     onFullscreenChange: (Boolean) -> Unit,
+    onEnterPip: () -> Unit,
     onTogglePlayPause: () -> Unit,
     onSeekTo: (Long) -> Unit
 ) {
@@ -4178,11 +4324,9 @@ private fun VideoPlayerBottomSheet(
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
     var previousOrientation by rememberSaveable { mutableStateOf(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED) }
-    val configuration = LocalConfiguration.current
     val standardTopInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
     val bottomInset = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val maxNonFullscreenVideoHeight =
-        (configuration.screenHeightDp.dp - standardTopInset - bottomInset - 160.dp).coerceAtLeast(180.dp)
+    val nonFullscreenVideoHeight = 220.dp
     val controlsAlpha by animateFloatAsState(
         targetValue = if (controlsVisible || !state.isPlaying) 1f else 0f,
         animationSpec = tween(durationMillis = 220),
@@ -4319,8 +4463,7 @@ private fun VideoPlayerBottomSheet(
                     Modifier
                         .fillMaxWidth()
                         .align(Alignment.Center)
-                        .heightIn(max = maxNonFullscreenVideoHeight)
-                        .aspectRatio(videoAspectRatio, matchHeightConstraintsFirst = videoAspectRatio < 1f)
+                        .height(nonFullscreenVideoHeight)
                         .background(Color.Black)
                 },
                 contentAlignment = Alignment.Center
@@ -4396,6 +4539,21 @@ private fun VideoPlayerBottomSheet(
                         contentDescription = "Opções do vídeo",
                         tint = Color.White
                     )
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    IconButton(
+                        enabled = controlsAlpha > 0.05f,
+                        onClick = {
+                            controlsVisible = true
+                            onEnterPip()
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.PictureInPictureAlt,
+                            contentDescription = "Picture-in-picture",
+                            tint = Color.White
+                        )
+                    }
                 }
             }
 

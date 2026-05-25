@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.yield
 import java.util.UUID
 import java.util.Locale
 import java.net.URI
@@ -21,6 +22,7 @@ import java.net.URI
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<DownloadUiState> = DownloadStateStore.uiState
     private var searchJob: Job? = null
+    private val searchCache = linkedMapOf<String, CachedSearchPage>()
 
     init {
         DownloadStateStore.setSimultaneousDownloadsLimit(
@@ -83,19 +85,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             runCatching {
                 withContext(Dispatchers.IO) {
                     if (resetPage) {
-                        val firstPageDeferred = async { DownloadEngines.current.search(query, 0) }
-                        val secondPageDeferred = async { DownloadEngines.current.search(query, 1) }
-                        val firstPage = firstPageDeferred.await()
-                        val secondPage = secondPageDeferred.await()
-                        val merged = buildList<SearchResultItem> {
-                            (firstPage.first + secondPage.first).forEach { item ->
-                                if (none { it.url == item.url }) add(item)
-                            }
+                        val cached = searchCache[query]
+                        if (cached != null && cached.items.isNotEmpty()) {
+                            return@withContext Triple(cached.page, cached.items, cached.hasMore)
                         }
-                        Triple(1, merged, secondPage.second)
+
+                        val pages = mutableListOf<Pair<List<SearchResultItem>, Boolean>>()
+                        for (pageIndex in 0 until SEARCH_PREFETCH_PAGES) {
+                            pages += DownloadEngines.current.search(query, pageIndex)
+                            yield()
+                            if (pages.last().first.isEmpty() || !pages.last().second) break
+                        }
+                        val merged = mergeSearchResults(pages.flatMap { it.first })
+                        val lastPage = (pages.size - 1).coerceAtLeast(0)
+                        val hasMore = pages.lastOrNull()?.second == true
+                        rememberSearchCache(query, CachedSearchPage(lastPage, merged, hasMore))
+                        Triple(lastPage, merged, hasMore)
                     } else {
                         val targetPage = state.searchPage + 1
                         val (results, hasMore) = DownloadEngines.current.search(query, targetPage)
+                        val merged = mergeSearchResults(state.searchResults + results)
+                        rememberSearchCache(query, CachedSearchPage(targetPage, merged, hasMore))
                         Triple(targetPage, results, hasMore)
                     }
                 }
@@ -427,5 +437,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (existingDuplicate) return DownloadEnqueueStatus.DUPLICATE_EXISTING
 
         return null
+    }
+
+    private fun rememberSearchCache(query: String, page: CachedSearchPage) {
+        searchCache[query] = page
+        while (searchCache.size > MAX_SEARCH_CACHE_QUERIES) {
+            val oldest = searchCache.keys.firstOrNull() ?: break
+            searchCache.remove(oldest)
+        }
+    }
+
+    private fun mergeSearchResults(items: List<SearchResultItem>): List<SearchResultItem> {
+        return buildList {
+            items.forEach { item ->
+                if (item.url.isNotBlank() && none { it.url == item.url }) add(item)
+            }
+        }
+    }
+
+    private data class CachedSearchPage(
+        val page: Int,
+        val items: List<SearchResultItem>,
+        val hasMore: Boolean
+    )
+
+    companion object {
+        private const val SEARCH_PREFETCH_PAGES = 5
+        private const val MAX_SEARCH_CACHE_QUERIES = 8
     }
 }

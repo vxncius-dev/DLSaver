@@ -21,7 +21,7 @@ except Exception:
     mutagen = None
 
 
-PAGE_SIZE = 8
+PAGE_SIZE = 10
 PROGRESS_RE = re.compile(r"\[download\]\s+(\d+(?:\.\d+)?)%")
 MAX_LOG_LINES = 240
 EXPORTABLE_EXTENSIONS = (
@@ -282,7 +282,32 @@ def preview_stream_url(url):
     if not _is_url(url):
         raise ValueError("preview_stream_url espera uma URL valida")
 
-    info = _extract_info(url)
+    try:
+        with yt_dlp.YoutubeDL(
+            {
+                "quiet": True,
+                "no_warnings": True,
+                "skip_download": True,
+                "cachedir": False,
+                "noplaylist": True,
+                # O preview precisa de uma URL unica que o ExoPlayer abra com audio.
+                # Evita formatos DASH separados (video-only + audio-only).
+                "format": (
+                    "best[protocol*=m3u8][vcodec!=none][acodec!=none]/"
+                    "best[vcodec!=none][acodec!=none]/best"
+                ),
+            }
+        ) as ydl:
+            info = ydl.extract_info(url, download=False) or {}
+    except Exception:
+        info = _extract_info(url)
+
+    selected_url = info.get("url") or ""
+    selected_vcodec = info.get("vcodec") or ""
+    selected_acodec = info.get("acodec") or ""
+    if selected_url and selected_vcodec != "none" and selected_acodec != "none":
+        return json.dumps({"url": selected_url.replace("http://", "https://", 1)})
+
     formats = info.get("formats") or []
     candidates = []
     for fmt in formats:
@@ -290,7 +315,8 @@ def preview_stream_url(url):
             continue
         stream_url = fmt.get("url") or ""
         vcodec = fmt.get("vcodec") or ""
-        if not stream_url or vcodec == "none":
+        acodec = fmt.get("acodec") or ""
+        if not stream_url or vcodec == "none" or acodec == "none":
             continue
         protocol = (fmt.get("protocol") or "").lower()
         ext = (fmt.get("ext") or "").lower()

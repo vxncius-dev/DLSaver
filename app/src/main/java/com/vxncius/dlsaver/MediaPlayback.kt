@@ -137,7 +137,8 @@ object MediaPlayback {
     suspend fun playExternalVideo(
         context: Context,
         uri: Uri,
-        title: String = ""
+        title: String = "",
+        artworkUri: Uri? = null
     ) {
         val resolverMime = runCatching { context.contentResolver.getType(uri).orEmpty() }.getOrDefault("")
         val fallbackTitle = fileNameWithoutExtension(title).trim().ifBlank { "Video" }
@@ -148,7 +149,7 @@ object MediaPlayback {
             title = cached?.title?.ifBlank { fallbackTitle } ?: fallbackTitle,
             artist = cached?.artist.orEmpty(),
             artworkData = cached?.artworkData,
-            artworkUri = defaultArtworkUri(context),
+            artworkUri = artworkUri ?: defaultArtworkUri(context),
             kind = EXTRA_KIND_VIDEO,
             metadataEnriched = cached != null
         )
