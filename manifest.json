@@ -2,13 +2,13 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
-                         "versionCode":  11,
-                         "versionName":  "1.15.7",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.7/dlsaver_v1.15.7_arm64-v8a.apk",
-                         "notes":  "Android arm64-v8a com rotacao de User-Agent/headers no yt-dlp e alternancia de cliente YouTube android/web para inspect, preview, qualidades, playlists e download",
-                         "publishedAt":  "2026-05-25T21:04:46Z",
-                         "sha256":  "3026582945a1bf5a68c9b323b8c7486d97d2957b36ab22ffbaf76ca0b8ac1afe",
-                         "sizeBytes":  85978109,
+                         "versionCode":  12,
+                         "versionName":  "1.15.8",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.8/dlsaver_v1.15.8_arm64-v8a.apk",
+                         "notes":  "Android arm64-v8a com Firebase Analytics automatico para usuarios/tempo de uso, download de video priorizando a maior qualidade disponivel, selecao manual de qualidade fora do Labs e remocao persistente de letras",
+                         "publishedAt":  "2026-05-28T19:02:27Z",
+                         "sha256":  "577fc920ab05df0475ccd22ebe6cb87b530a4892c19886742cb5346fc8a3c6ee",
+                         "sizeBytes":  87383647,
                          "abi":  "arm64-v8a"
                      }
                  ]

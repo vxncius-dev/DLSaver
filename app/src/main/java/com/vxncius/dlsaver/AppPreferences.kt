@@ -8,6 +8,7 @@ object AppPreferences {
     private const val KEY_PLAYER_MONOCHROMATIC = "player_monochromatic"
     private const val KEY_LABS_MODE = "labs_mode"
     private const val KEY_SEARCH_AUTOPLAY = "search_autoplay"
+    private const val KEY_ALWAYS_BEST_VIDEO_QUALITY = "always_best_video_quality"
     private const val KEY_MEDIA_PERMISSION_REQUESTED = "media_permission_requested"
 
     fun getSimultaneousDownloadsLimit(context: Context): Int {
@@ -56,6 +57,18 @@ object AppPreferences {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .edit()
             .putBoolean(KEY_SEARCH_AUTOPLAY, enabled)
+            .apply()
+    }
+
+    fun isAlwaysBestVideoQualityEnabled(context: Context): Boolean {
+        return context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_ALWAYS_BEST_VIDEO_QUALITY, true)
+    }
+
+    fun setAlwaysBestVideoQualityEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ALWAYS_BEST_VIDEO_QUALITY, enabled)
             .apply()
     }
 

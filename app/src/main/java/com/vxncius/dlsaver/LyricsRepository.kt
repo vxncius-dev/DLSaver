@@ -39,6 +39,7 @@ object LyricsRepository {
     private const val baseUrl = "https://lrclib.net/api/get"
     private const val searchUrl = "https://lrclib.net/api/search"
     private const val userAgent = "DLSaver/1.0.7"
+    private const val removedMarker = "removed"
 
     suspend fun load(
         context: Context,
@@ -196,6 +197,25 @@ object LyricsRepository {
         writeCache(cacheFile, payload)
     }
 
+    suspend fun removeManual(
+        context: Context,
+        rawTitle: String,
+        rawArtist: String,
+        displayTitle: String,
+        displayArtist: String,
+        durationMs: Long
+    ) {
+        val cacheFile = cacheFileFor(
+            context = context,
+            rawTitle = rawTitle,
+            rawArtist = rawArtist,
+            displayTitle = displayTitle,
+            displayArtist = displayArtist,
+            durationMs = durationMs
+        )
+        writeRemovedMarker(cacheFile)
+    }
+
     private suspend fun fetchRemote(
         rawTitle: String,
         rawArtist: String,
@@ -321,6 +341,9 @@ object LyricsRepository {
         return withContext(Dispatchers.IO) {
             runCatching {
                 val json = JSONObject(file.readText())
+                if (json.optBoolean(removedMarker, false)) {
+                    return@runCatching LyricsPayload()
+                }
                 val linesJson = json.optJSONArray("syncedLines") ?: JSONArray()
                 val lines = buildList {
                     for (i in 0 until linesJson.length()) {
@@ -335,7 +358,7 @@ object LyricsRepository {
                 LyricsPayload(
                     syncedLines = lines,
                     plainLyrics = json.optString("plainLyrics").trim()
-                ).takeIf { it.hasLyrics }
+                )
             }.getOrNull()
         }
     }
@@ -356,6 +379,15 @@ object LyricsRepository {
                     })
                 }
                 file.writeText(json.toString())
+            }
+        }
+    }
+
+    private suspend fun writeRemovedMarker(file: File) {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                file.parentFile?.mkdirs()
+                file.writeText(JSONObject().put(removedMarker, true).toString())
             }
         }
     }

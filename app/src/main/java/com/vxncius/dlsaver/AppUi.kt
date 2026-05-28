@@ -271,6 +271,7 @@ fun DLSaverRoot(
     var playerMonochromatic by remember { mutableStateOf(AppPreferences.isPlayerMonochromatic(context)) }
     var labsModeEnabled by remember { mutableStateOf(AppPreferences.isLabsModeEnabled(context)) }
     var searchAutoplayEnabled by remember { mutableStateOf(AppPreferences.isSearchAutoplayEnabled(context)) }
+    var alwaysBestVideoQuality by remember { mutableStateOf(AppPreferences.isAlwaysBestVideoQualityEnabled(context)) }
     var inlinePreviewItem by remember { mutableStateOf<SearchResultItem?>(null) }
     var inlinePreviewLoadingUrl by remember { mutableStateOf("") }
     var inlinePreviewError by remember { mutableStateOf("") }
@@ -304,26 +305,17 @@ fun DLSaverRoot(
             }
             result.onSuccess { qualities ->
                 val sorted = qualities.distinctBy { it.height }.sortedByDescending { it.height }
-                val preferred = sorted.filter { it.height >= 720 }
                 when {
-                    preferred.size > 1 -> {
+                    sorted.size > 1 -> {
                         videoQualityItem = item
-                        videoQualityOptions = preferred
+                        videoQualityOptions = sorted
                         videoQualityLoading = false
                         videoQualityError = ""
                     }
-                    preferred.size == 1 -> {
-                        val quality = preferred.first()
-                        val enqueue = onDownloadResult(item, DownloadKind.VIDEO, quality.height)
-                        Toast.makeText(context, "Apenas ${quality.label} disponível. ${enqueue.toastMessage()}", Toast.LENGTH_LONG).show()
-                    }
-                    sorted.isNotEmpty() -> {
+                    sorted.size == 1 -> {
                         val quality = sorted.first()
                         val enqueue = onDownloadResult(item, DownloadKind.VIDEO, quality.height)
-                        Toast.makeText(context, "Só ${quality.label} disponível. Baixando nessa qualidade.", Toast.LENGTH_LONG).show()
-                        if (!enqueue.enqueued) {
-                            Toast.makeText(context, enqueue.toastMessage(), Toast.LENGTH_SHORT).show()
-                        }
+                        Toast.makeText(context, "Apenas ${quality.label} disponível. ${enqueue.toastMessage()}", Toast.LENGTH_LONG).show()
                     }
                     else -> {
                         val enqueue = onDownloadResult(item, DownloadKind.VIDEO, 0)
@@ -521,7 +513,7 @@ fun DLSaverRoot(
                 }
                 dialogItem = null
             },
-            showExperimentalQuality = labsModeEnabled,
+            showVideoQualitySelection = !alwaysBestVideoQuality,
             onSelectVideoQuality = {
                 dialogItem = null
                 startVideoDownloadWithQuality(item)
@@ -851,6 +843,7 @@ fun DLSaverRoot(
                     state = state,
                     playerMonochromatic = playerMonochromatic,
                     labsModeEnabled = labsModeEnabled,
+                    alwaysBestVideoQuality = alwaysBestVideoQuality,
                     downloadPermissionGranted = downloadPermissionGranted,
                     notificationPermissionGranted = notificationPermissionGranted,
                     mediaPermissionsGranted = mediaPermissionsGranted,
@@ -869,6 +862,10 @@ fun DLSaverRoot(
                     onToggleLabsMode = { enabled ->
                         labsModeEnabled = enabled
                         AppPreferences.setLabsModeEnabled(context, enabled)
+                    },
+                    onToggleAlwaysBestVideoQuality = { enabled ->
+                        alwaysBestVideoQuality = enabled
+                        AppPreferences.setAlwaysBestVideoQualityEnabled(context, enabled)
                     },
                     searchAutoplayEnabled = searchAutoplayEnabled,
                     onToggleSearchAutoplay = { enabled ->
@@ -2856,6 +2853,7 @@ private fun SettingsHubScreen(
     state: DownloadUiState,
     playerMonochromatic: Boolean,
     labsModeEnabled: Boolean,
+    alwaysBestVideoQuality: Boolean,
     searchAutoplayEnabled: Boolean,
     installPackagesPermissionGranted: Boolean,
     notificationPermissionGranted: Boolean,
@@ -2865,6 +2863,7 @@ private fun SettingsHubScreen(
     downloadPermissionGranted: Boolean,
     onTogglePlayerMonochromatic: (Boolean) -> Unit,
     onToggleLabsMode: (Boolean) -> Unit,
+    onToggleAlwaysBestVideoQuality: (Boolean) -> Unit,
     onToggleSearchAutoplay: (Boolean) -> Unit,
     onRequestNotificationPermission: () -> Unit,
     onRequestMediaPermission: () -> Unit,
@@ -2901,6 +2900,12 @@ private fun SettingsHubScreen(
                 value = "Ativa recursos experimentais em teste",
                 checked = labsModeEnabled,
                 onCheckedChange = onToggleLabsMode
+            )
+            SettingsToggleItem(
+                label = "Sempre baixar vídeo na maior qualidade",
+                value = "Oculta a seleção manual e usa o melhor formato disponível",
+                checked = alwaysBestVideoQuality,
+                onCheckedChange = onToggleAlwaysBestVideoQuality
             )
             if (labsModeEnabled) {
                 SettingsToggleItem(
@@ -3293,7 +3298,7 @@ private fun DownloadKindBottomSheet(
     item: SearchResultItem,
     onDismiss: () -> Unit,
     onSelect: (DownloadKind) -> Unit,
-    showExperimentalQuality: Boolean,
+    showVideoQualitySelection: Boolean,
     onSelectVideoQuality: () -> Unit
 ) {
     ModalBottomSheet(
@@ -3361,7 +3366,7 @@ private fun DownloadKindBottomSheet(
                     Text("Baixar como vídeo")
                 }
             }
-            if (showExperimentalQuality) {
+            if (showVideoQualitySelection) {
                 TextButton(
                     onClick = onSelectVideoQuality,
                     modifier = Modifier.fillMaxWidth(),
@@ -3373,7 +3378,7 @@ private fun DownloadKindBottomSheet(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Default.Info, contentDescription = null)
-                        Text("Escolher qualidade (experimental)")
+                        Text("Escolher qualidade")
                     }
                 }
             }
@@ -3584,6 +3589,7 @@ private fun PlayerBottomSheet(
     onCycleRepeatMode: () -> Unit
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val activity = remember(context) { context.findActivity() }
     val embeddedArtwork = rememberEmbeddedArtwork(state.mediaUri)
     val prevArtwork = rememberEmbeddedArtwork(state.prevMediaUri)
@@ -3982,9 +3988,20 @@ private fun PlayerBottomSheet(
             hasLyrics = lyricsAvailable,
             onDismiss = { lyricsOptionsSheetOpen = false },
             onRemove = {
-                manualLyricsPayload = LyricsPayload()
-                lyricsVisible = false
-                lyricsOptionsSheetOpen = false
+                scope.launch {
+                    LyricsRepository.removeManual(
+                        context = context.applicationContext,
+                        rawTitle = state.title,
+                        rawArtist = state.artist,
+                        displayTitle = displayTitle,
+                        displayArtist = displayArtist,
+                        durationMs = state.durationMs
+                    )
+                    manualLyricsPayload = LyricsPayload()
+                    lyricsVisible = false
+                    lyricsOptionsSheetOpen = false
+                    Toast.makeText(context, "Letra removida", Toast.LENGTH_SHORT).show()
+                }
             },
             onSearch = {
                 lyricsOptionsSheetOpen = false

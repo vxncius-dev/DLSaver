@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "190350307644",
+    "project_id": "dlsaver",
+    "storage_bucket": "dlsaver.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:190350307644:android:f16f7f64da45861067ae39",
+        "android_client_info": {
+          "package_name": "com.vxncius.dlsaver"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "190350307644-bbii1mf0litfe5q9251v41aee05rubh0.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vxncius.dlsaver",
+            "certificate_hash": "35e356f1cbf7ed6d8191149f1b90271991efc4a9"
+          }
+        },
+        {
+          "client_id": "190350307644-mrhp32p35fka5q1g7aud1v2g3nda13ar.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vxncius.dlsaver",
+            "certificate_hash": "6102cc4c5b5ed5cc547b13a793027bc943adb318"
+          }
+        },
+        {
+          "client_id": "190350307644-fbi9ouptm4q890l2lb3s0f6u0je7f5ns.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbZDgfe9Ubilg6AkH1LZs5MqwOTl6d9qk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "190350307644-fbi9ouptm4q890l2lb3s0f6u0je7f5ns.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

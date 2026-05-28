@@ -1,5 +1,12 @@
 # DLSaver History
 
+## 2026-05-28
+
+- Release Android 1.15.8 adicionando Firebase Analytics automatico para usuarios ativos e tempo de engajamento.
+- Downloads de video agora priorizam a maior qualidade disponivel antes de preferir MP4, permitindo 720p/1080p/2K/4K quando o YouTube expuser esses formatos.
+- Selecao manual de qualidade saiu do Labs e ganhou configuracao para sempre baixar na maior qualidade.
+- Remocao de letra agora fica persistida localmente para evitar que a letra errada reapareca ao voltar na musica.
+
 ## 2026-05-25 hotfix 3
 
 - Release Android 1.15.7 adicionando rotação de User-Agent/headers no yt-dlp e alternância de cliente YouTube android/web.

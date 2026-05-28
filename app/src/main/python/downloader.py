@@ -425,10 +425,15 @@ def _video_format(video_min_height):
     target_height = int(video_min_height or 0)
     if target_height > 0:
         return (
+            f"bestvideo[height<={target_height}]+bestaudio/"
             f"bestvideo[height<={target_height}][ext=mp4]+bestaudio[ext=m4a]/"
             f"best[height<={target_height}][ext=mp4]/best[height<={target_height}]/best"
         )
-    return "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+    return (
+        "bestvideo+bestaudio/"
+        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/"
+        "best[ext=mp4]/best"
+    )
 
 
 def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height=0):
@@ -485,6 +490,7 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
         ])
     else:
         command.extend(["-f", _video_format(video_min_height)])
+        command.extend(["--merge-output-format", "mkv"])
 
     command.append(url)
     return command
@@ -540,6 +546,7 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
         options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
     else:
         options["format"] = _video_format(video_min_height)
+        options["merge_output_format"] = "mkv"
 
     return options
 
