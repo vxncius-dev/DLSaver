@@ -204,6 +204,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.distinctUntilChanged
 
+private const val PICTURE_IN_PICTURE_ENABLED = false
+
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun DLSaverRoot(
@@ -341,6 +343,7 @@ fun DLSaverRoot(
     }
 
     fun enterVideoPictureInPicture(videoWidth: Int, videoHeight: Int) {
+        if (!PICTURE_IN_PICTURE_ENABLED) return
         val activity = context.findActivity() ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val safeWidth = videoWidth.takeIf { it > 0 } ?: 16
@@ -1727,7 +1730,7 @@ private fun SearchInlineVideoPreview(
                         IconButton(onClick = onFullscreen) {
                             Icon(Icons.Default.Fullscreen, contentDescription = "Abrir em tela cheia", tint = Color.White)
                         }
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        if (PICTURE_IN_PICTURE_ENABLED && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                             IconButton(onClick = onEnterPip) {
                                 Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture-in-picture", tint = Color.White)
                             }
@@ -4656,7 +4659,7 @@ private fun VideoPlayerBottomSheet(
                         tint = Color.White
                     )
                 }
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (PICTURE_IN_PICTURE_ENABLED && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     IconButton(
                         enabled = controlsAlpha > 0.05f,
                         onClick = {

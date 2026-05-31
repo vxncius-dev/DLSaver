@@ -1,5 +1,10 @@
 # DLSaver History
 
+## 2026-05-31
+
+- Release Android 1.15.9 corrigindo downloads de audio para selecionar apenas streams sem video e impedir exportacao de arquivos de video no modo audio.
+- Picture-in-picture foi ocultado na interface e desativado no Manifest temporariamente.
+
 ## 2026-05-28
 
 - Release Android 1.15.8 adicionando Firebase Analytics automatico para usuarios ativos e tempo de engajamento.

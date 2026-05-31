@@ -29,6 +29,7 @@ EXPORTABLE_EXTENSIONS = (
     ".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".flac", ".webm",
     ".mp4", ".mkv", ".mov", ".avi",
 )
+AUDIO_EXPORTABLE_EXTENSIONS = (".mp3", ".m4a", ".aac", ".wav", ".ogg", ".opus", ".flac", ".webm")
 
 USER_AGENTS = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -436,6 +437,10 @@ def _video_format(video_min_height):
     )
 
 
+def _audio_format():
+    return "bestaudio[ext=m4a][vcodec=none]/bestaudio[vcodec=none]"
+
+
 def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio_only, video_min_height=0):
     output_template = os.path.join(output_dir, "%(title)s.%(ext)s")
     command = []
@@ -486,7 +491,7 @@ def _build_command(url, output_dir, yt_dlp_path, ffmpeg_path, aria2c_path, audio
     if audio_only:
         command.extend([
             "-f",
-            "bestaudio[ext=m4a]/bestaudio/best",
+            _audio_format(),
         ])
     else:
         command.extend(["-f", _video_format(video_min_height)])
@@ -543,7 +548,7 @@ def _yt_dlp_api_options(temp_dir, ffmpeg_path, aria2c_path, audio_only, callback
         options["ffmpeg_location"] = os.path.dirname(ffmpeg_path)
 
     if audio_only:
-        options["format"] = "bestaudio[ext=m4a]/bestaudio/best"
+        options["format"] = _audio_format()
     else:
         options["format"] = _video_format(video_min_height)
         options["merge_output_format"] = "mkv"
@@ -587,11 +592,22 @@ def _download_bytes(url, timeout=8):
 
 
 def _pick_primary_audio_file(files):
-    audio_exts = (".m4a", ".mp3", ".aac", ".opus", ".ogg", ".wav", ".flac", ".webm")
-    audio_files = [f for f in files if f.lower().endswith(audio_exts)]
+    audio_files = [f for f in files if f.lower().endswith(AUDIO_EXPORTABLE_EXTENSIONS)]
     if not audio_files:
         return None
     return max(audio_files, key=lambda p: os.path.getsize(p) if os.path.exists(p) else 0)
+
+
+def _remove_non_audio_exportables(temp_dir, lines):
+    for file_path in _collect_exportable_files(temp_dir):
+        lower = file_path.lower()
+        if lower.endswith(AUDIO_EXPORTABLE_EXTENSIONS):
+            continue
+        try:
+            os.remove(file_path)
+            _append_log(lines, f"removed_non_audio_file={file_path}")
+        except Exception as exc:
+            _append_log(lines, f"remove_non_audio_failed={file_path}: {repr(exc)}")
 
 
 def _write_audio_tags(file_path, title, artist, cover_bytes):
@@ -949,6 +965,11 @@ def run_download(url, temp_dir, yt_dlp_path="", ffmpeg_path="", aria2c_path="", 
                 _write_audio_tags(converted, clean_title, info_uploader, cover)
                 files = _collect_exportable_files(temp_dir)
                 _append_log(lines, f"flac_file={converted}")
+        _remove_non_audio_exportables(temp_dir, lines)
+        files = [f for f in _collect_exportable_files(temp_dir) if f.lower().endswith(AUDIO_EXPORTABLE_EXTENSIONS)]
+        if not files:
+            _append_log(lines, "Nenhum arquivo de audio exportavel foi produzido.")
+            exit_code = -3
 
     final_progress = 1.0 if exit_code == 0 else 0.0
     _notify(

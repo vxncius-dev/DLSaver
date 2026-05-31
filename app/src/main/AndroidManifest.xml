@@ -36,7 +36,7 @@
             android:exported="true"
             android:launchMode="singleTask"
             android:documentLaunchMode="never"
-            android:supportsPictureInPicture="true"
+            android:supportsPictureInPicture="false"
             android:theme="@style/Theme.DLSaver">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
