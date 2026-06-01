@@ -2,12 +2,12 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
-                         "versionCode":  15,
-                         "versionName":  "1.16.0",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.16.0/dlsaver_v1.16.0_arm64-v8a.apk",
-                         "notes":  "Hotfix com card do player mais arredondado, preview fixo abaixo do header com lista rolando por tras e fechamento correto do fullscreen removendo o card de video.",
-                         "publishedAt":  "2026-06-01T10:31:15Z",
-                         "sha256":  "36c8cf78fd238942787331487387d3dce83f34fa38d0dc922ef2f3dd09f0b3ef",
+                         "versionCode":  16,
+                         "versionName":  "1.16.1",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.16.1/dlsaver_v1.16.1_arm64-v8a.apk",
+                         "notes":  "CorreÃ§Ã£o de bugs e melhorias de estabilidade.",
+                         "publishedAt":  "2026-06-01T21:11:35Z",
+                         "sha256":  "23f6ac2cd340842194d0fc64350f59c84a4a4511b7f0ac7013349076a9a84b31",
                          "sizeBytes":  87383947,
                          "abi":  "arm64-v8a"
                      }
