@@ -2,13 +2,13 @@
     "appId":  "com.vxncius.dlsaver",
     "releases":  [
                      {
-                         "versionCode":  13,
-                         "versionName":  "1.15.9",
-                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.9/dlsaver_v1.15.9_arm64-v8a.apk",
-                         "notes":  "Hotfix Android arm64-v8a corrigindo download de audio para nunca exportar video e ocultando/desativando Picture-in-picture temporariamente",
-                         "publishedAt":  "2026-05-31T23:35:15Z",
-                         "sha256":  "6c180b9d74eca5c172d6c623160997b2c95fc8b45f68e78ba347a29e1c2e6661",
-                         "sizeBytes":  87383647,
+                         "versionCode":  14,
+                         "versionName":  "1.15.10",
+                         "apkUrl":  "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.10/dlsaver_v1.15.10_arm64-v8a.apk",
+                         "notes":  "Ajusta headers fixos, player de stream fixo na busca, layout de listas, controles do player e melhorias experimentais da busca.",
+                         "publishedAt":  "2026-06-01T04:06:34Z",
+                         "sha256":  "eb3543ff009db7c5619f954e39836126ec7da96c3c0e0e3ef8d036233df2556d",
+                         "sizeBytes":  87383643,
                          "abi":  "arm64-v8a"
                      }
                  ]
