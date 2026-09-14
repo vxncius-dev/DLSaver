@@ -2,23 +2,23 @@
   "appId": "com.vxncius.dlsaver",
   "releases": [
     {
-      "versionCode": 17,
-      "versionName": "1.23.0",
-      "apkUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.23.0/dlsaver_v1.23.0_arm64-v8a.apk",
-      "notes": "Lançamento v1.23.0: Runtime nativo embutido com FFmpeg e Aria2c acelerado, seleção múltipla de playlists e mídias, PiP duplo isolado, suporte a Google Cast e cofre biométrico.",
-      "publishedAt": "2026-09-12T21:30:00Z",
-      "sha256": "97e150bdafa487cfbcfff780b7f4d7956116ca3a27f1652b7b631aa70d7663cc",
-      "sizeBytes": 51093749,
+      "versionCode": 18,
+      "versionName": "1.24.0",
+      "apkUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.24.0/dlsaver_v1.24.0_arm64-v8a.apk",
+      "notes": "Lançamento v1.24.0: Integração com Custom Web Receiver no Google Cast (suporte a TV estilo Apple Music Atmos), controles remotos de faixas (pular/voltar e seleção direta) sincronizados com a TV, reprodução contínua da playlist no Cast sem interrupções, deduplicação de dispositivos no seletor com botão de desconexão e status em tempo real com loader de conexão, remoção completa de anúncios, espaçamento otimizado dos cards de playlist e novo botão de like branco.",
+      "publishedAt": "2026-09-14T01:25:00Z",
+      "sha256": "14c2ec9f32475ce4d08ab866ae99667eba1d3e8b71628f3474441064431e1168",
+      "sizeBytes": 51376326,
       "abi": "arm64-v8a"
     },
     {
-      "versionCode": 17,
-      "versionName": "1.23.0",
-      "apkUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.23.0/dlsaver_v1.23.0_armeabi-v7a.apk",
-      "notes": "Lançamento v1.23.0 (32 bits): Runtime nativo embutido com FFmpeg e Aria2c acelerado para armeabi-v7a, seleção múltipla, PiP duplo, Google Cast e cofre biométrico.",
-      "publishedAt": "2026-09-12T21:30:00Z",
-      "sha256": "90fb6549f83075a6a6c2ceec1b5fd1e03b7687f0a5c921917be9d1ce42abf98e",
-      "sizeBytes": 49482057,
+      "versionCode": 18,
+      "versionName": "1.24.0",
+      "apkUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.24.0/dlsaver_v1.24.0_armeabi-v7a.apk",
+      "notes": "Lançamento v1.24.0 (32 bits): Versão otimizada para armeabi-v7a com suporte ao Custom Web Receiver do Google Cast, controle contínuo de playlist na TV, deduplicação de dispositivos no seletor, remoção de anúncios e melhorias de interface.",
+      "publishedAt": "2026-09-14T01:25:00Z",
+      "sha256": "cd163fbefb87c26580ea258d6f8e69eb9660fdbc9e049439557f2bf62d883c8c",
+      "sizeBytes": 49764634,
       "abi": "armeabi-v7a"
     }
   ]
