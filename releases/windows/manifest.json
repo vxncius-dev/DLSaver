@@ -2,13 +2,13 @@
   "appId": "com.vxncius.dlsaver",
   "releases": [
     {
-      "versionCode": 7,
-      "versionName": "1.15.3",
-      "exeUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.15.3/dlsaver_v1.15.3_windows_x64.exe",
-      "notes": "Build Windows com busca corrigida, manifest por plataforma e melhorias de empacotamento desktop",
-      "publishedAt": "2026-05-04T16:33:45Z",
-      "sha256": "f530767e17a2aacab9850276803dfbf018c28430c6e66ba7baba2463db5954a8",
-      "sizeBytes": 139074862,
+      "versionCode": 8,
+      "versionName": "1.16.0",
+      "exeUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.16.0/dlsaver_v1.16.0_windows_setup_x64.exe",
+      "notes": "Instalador Windows com opções de atalhos no Menu Iniciar e Área de Trabalho, suporte a desinstalação e ícone atualizado",
+      "publishedAt": "2026-09-14T23:44:00Z",
+      "sha256": "8834797a66625d8cf35973ac89e75f548b39e2c303b5d7820c12cb89b7e6b396",
+      "sizeBytes": 138452222,
       "arch": "x64"
     }
   ]

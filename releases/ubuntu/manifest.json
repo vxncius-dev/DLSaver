@@ -1,0 +1,15 @@
+{
+  "appId": "com.vxncius.dlsaver",
+  "releases": [
+    {
+      "versionCode": 8,
+      "versionName": "1.16.0",
+      "debUrl": "https://github.com/vxncius-dev/DLSaver/releases/download/v1.16.0/dlsaver_1.16.0_amd64_ubuntu.deb",
+      "notes": "Build Ubuntu 1.16.0 com player e interface atualizados",
+      "publishedAt": "2026-09-14T23:44:00Z",
+      "sha256": "af94b4d0f924a8c320c7fc0e3ce8e29058c961acf557eb0763e17feceab485b2",
+      "sizeBytes": 229720158,
+      "arch": "amd64"
+    }
+  ]
+}
